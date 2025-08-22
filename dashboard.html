@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lumiverse - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h4 class="text-center mb-0">LUMIVERSE</h4>
+            </div>
+            <ul class="sidebar-menu">
+                <li><a href="#dashboard" class="active" data-bs-toggle="tab" data-bs-target="#dashboard"><i class="fas fa-home"></i> Dashboard</a></li>
+                <li><a href="#family-members" data-bs-toggle="tab" data-bs-target="#family-members"><i class="fas fa-users"></i> Family Members</a></li>
+                <li><a href="#customization" data-bs-toggle="tab" data-bs-target="#customization"><i class="fas fa-file-archive"></i> Customization</a></li>
+                <li><a href="#settings" data-bs-toggle="tab" data-bs-target="#settings"><i class="fas fa-cog"></i> Settings</a></li>
+                <li><a href="#emergency" data-bs-toggle="tab" data-bs-target="#emergency"><i class="fas fa-phone-alt"></i> Emergency</a></li>
+                <li><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Top Navigation -->
+            <div class="top-nav">
+                <button class="btn btn-outline-secondary mobile-menu-btn d-lg-none">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="user-info">
+                    <div class="user-avatar"></div>
+                    <span class="user-fullname"></span>
+                </div>
+                
+                <!-- Add Google Drive Connect Button Here -->
+                <button id="google-drive-auth" class="btn btn-outline-info me-2" style="display: none;">
+                    <i class="fab fa-google-drive"></i> Connect Google Drive
+                </button>
+                
+                <div class="notification-bell">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge" style="display: none;"></span>
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div class="tab-content mt-4">
+                <!-- Dashboard Tab -->
+                <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
+                    <h3 class="welcome-message mb-4"></h3>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="dashboard-card">
+                                <div class="card-title">
+                                    <span>Weather</span>
+                                </div>
+                                <div class="weather-widget">
+                                    <div class="weather-icon">☀️</div>
+                                    <div>
+                                        <div class="weather-temp">--°C</div>
+                                        <div class="weather-details">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="dashboard-card">
+                                <div class="card-title">
+                                    <span>Date & Time</span>
+                                </div></br>
+                                <div>
+                                    <div class="current-date"></div>
+                                    <div class="current-time"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="dashboard-card">
+                                <div class="card-title">
+                                    <span>Quick Actions</span>
+                                </div>
+                                <div class="d-grid gap-2">
+                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal" >
+                                        <i class="fas fa-user-plus me-2"></i>Add Family Member
+                                    </button>
+                                    <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#fileUploadModal">
+                                        <i class="fas fa-file-upload me-2"></i>Upload Customization
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-card mt-4">
+                        <div class="card-title">
+                            <span>Family Members</span>
+                        </div>
+                        <div class="family-members">
+                            <!-- Family members will be loaded here -->
+                        </div>
+                        <a href="#family-members" class="view-all-btn" data-bs-toggle="tab" data-bs-target="#family-members">
+                            View All Members <i class="fas fa-arrow-right ms-2"></i>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Family Members Tab -->
+                <div class="tab-pane fade" id="family-members" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3>Family Members</h3>
+                        <button class="btn btn-primary" id="add-member-btn-2">
+                        <i class="fas fa-user-plus me-2"></i>Add Member
+                    </button>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <div class="all-family-members">
+                            <!-- All family members will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Customization Tab -->
+                <div class="tab-pane fade" id="customization" role="tabpanel">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h3>Customization Requests</h3>
+                        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fileUploadModal">
+                            <i class="fas fa-file-upload me-2"></i>Upload New File
+                        </button>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <div class="card-title">
+                            <span>Your Uploaded Files</span>
+                        </div>
+                        <div class="customization-requests">
+                            <!-- Files will be loaded here -->
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-file-archive fa-3x mb-3"></i>
+                                <p>No customization requests yet</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Settings Tab -->
+                <div class="tab-pane fade" id="settings" role="tabpanel">
+                    <h3 class="mb-4">Account Settings</h3>
+                    
+                    <div class="dashboard-card">
+                        <form id="settings-form">
+                            <div class="form-group mb-3">
+                                <label for="settings-name" class="form-label">Full Name</label>
+                                <input type="text" class="form-control" id="settings-name" required>
+                            </div>
+                            <div class="form-group mb-3">
+                                <label for="settings-email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="settings-email" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Changes
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                
+                <!-- Emergency Tab -->
+                <div class="tab-pane fade" id="emergency" role="tabpanel">
+                    <h3 class="mb-4">Emergency Contacts</h3>
+                    
+                    <div class="dashboard-card">
+                        <form id="emergency-contacts-form">
+                            <div class="form-group mb-3">
+                                <label for="police-contact" class="form-label">Police Department</label>
+                                <input type="text" class="form-control" id="police-contact" placeholder="Enter police contact number">
+                            </div>
+                            <div class="form-group mb-3">
+                                <label for="fire-contact" class="form-label">Fire Department</label>
+                                <input type="text" class="form-control" id="fire-contact" placeholder="Enter fire department contact number">
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Save Contacts
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Member Modal -->
+    <div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add Family Member</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-member-form">
+                        <div class="form-group mb-3">
+                            <label for="member-name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="member-name" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="member-email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="member-email" required>
+                        <div id="email-feedback" class="invalid-feedback"></div> <!-- Add this line -->
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="member-password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="member-password" required>
+                            <div class="form-text">Must be at least 6 characters with 1 number and 1 uppercase letter</div>
+                            <div id="password-feedback" class="invalid-feedback"></div>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="member-role" class="form-label">Role</label>
+                            <select class="form-control" id="member-role" required>
+                                <option value="">Select Role</option>
+                                <option value="Wife">Wife</option>
+                                <option value="Husband">Husband</option>
+                                <option value="Son">Son</option>
+                                <option value="Daughter">Daughter</option>
+                                <option value="Mother">Mother</option>
+                                <option value="Father">Father</option>
+                                <option value="Grandmother">Grandmother</option>
+                                <option value="Grandfather">Grandfather</option>
+                                <option value="House Helper">House Helper</option>
+                                <option value="Guard">Guard</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Access Permissions</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="member-access" id="access-door" value="door">
+                                <label class="form-check-label" for="access-door">Door Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="member-access" id="access-window" value="window">
+                                <label class="form-check-label" for="access-window">Window Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="member-access" id="access-tv" value="tv">
+                                <label class="form-check-label" for="access-tv">TV Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="member-access" id="access-ac" value="aircon">
+                                <label class="form-check-label" for="access-ac">Air Conditioner Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="member-access" id="access-lights" value="lights">
+                                <label class="form-check-label" for="access-lights">Lights Access</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="save-member-btn">Save Member</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Member Modal -->
+    <div class="modal fade" id="editMemberModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Family Member</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-member-form">
+                        <div class="form-group mb-3">
+                            <label for="edit-member-name" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="edit-member-name" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="edit-member-email" class="form-label">Email Address</label>
+                            <input type="email" class="form-control" id="edit-member-email" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="edit-member-role" class="form-label">Role</label>
+                            <select class="form-control" id="edit-member-role" required>
+                                <option value="">Select Role</option>
+                                <option value="Wife">Wife</option>
+                                <option value="Husband">Husband</option>
+                                <option value="Son">Son</option>
+                                <option value="Daughter">Daughter</option>
+                                <option value="Mother">Mother</option>
+                                <option value="Father">Father</option>
+                                <option value="Grandmother">Grandmother</option>
+                                <option value="Grandfather">Grandfather</option>
+                                <option value="House Helper">House Helper</option>
+                                <option value="Guard">Guard</option>
+                            </select>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label class="form-label">Access Permissions</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit-member-access" id="edit-access-door" value="door">
+                                <label class="form-check-label" for="edit-access-door">Door Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit-member-access" id="edit-access-window" value="window">
+                                <label class="form-check-label" for="edit-access-window">Window Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit-member-access" id="edit-access-tv" value="tv">
+                                <label class="form-check-label" for="edit-access-tv">TV Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit-member-access" id="edit-access-ac" value="aircon">
+                                <label class="form-check-label" for="edit-access-ac">Air Conditioner Access</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="edit-member-access" id="edit-access-lights" value="lights">
+                                <label class="form-check-label" for="edit-access-lights">Lights Access</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="update-member-btn">Update Member</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Upload Modal -->
+    <div class="modal fade" id="fileUploadModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Upload Customization File</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="file-upload-form">
+                        <div class="form-group mb-3">
+                            <label for="file-upload" class="form-label">Select ZIP File (max 10MB)</label>
+                            <input type="file" class="form-control" id="file-upload" accept=".zip" required>
+                        </div>
+                        <div class="form-group mb-3">
+                            <label for="file-message" class="form-label">Optional Message</label>
+                            <textarea class="form-control" id="file-message" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary" id="upload-btn" form="file-upload-form">Upload File</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notifications Modal -->
+    <div class="modal fade" id="notificationsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Notifications</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary mark-all-read-btn" onclick="markAllNotificationsAsRead()">
+                        Mark All Read
+                    </button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="notifications-list">
+                        <!-- Notifications will be loaded here -->
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-bell-slash fa-3x mb-3"></i>
+                            <p>No new notifications</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100"></div>
+
+    <!-- Add this before your dashboard.js script -->
+    <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
+    <script>
+        // Initialize EmailJS with your public key
+        (function() {
+            emailjs.init("BVrGFgKc_hTr1RAuP");
+        })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <!-- App Scripts -->
+    <script src="js/firebase-config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/dashboard.js"></script>
+    
+    <script>
+        // Logout button
+        document.getElementById('logout-btn')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            auth.signOut().then(() => {
+                window.location.href = 'index.html';
+            });
+        });
+    </script>
+</body>
+</html>
