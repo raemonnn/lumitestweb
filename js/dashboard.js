@@ -9,33 +9,6 @@ const BASE_URL = IS_PRODUCTION ?
     'https://raemonnn.github.io/lumitestweb' : 
     window.location.origin;
 
-// Load Google API Client
-function loadGoogleAPI() {
-    return new Promise((resolve, reject) => {
-        if (window.gapi) {
-            console.log("Google API already loaded");
-            resolve();
-            return;
-        }
-
-        // Create script element
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = () => {
-            console.log("Google API script loaded");
-            gapi.load('client', () => {
-                console.log("Google API client loaded");
-                resolve();
-            });
-        };
-        script.onerror = () => {
-            console.error("Failed to load Google API");
-            reject(new Error('Failed to load Google API'));
-        };
-        document.head.appendChild(script);
-    });
-}
-
 
 // DOM Elements
 let sidebar, mobileMenuBtn, notificationBell, fileUploadForm;
@@ -995,32 +968,6 @@ function handleDeleteMember(e) {
                 showToast('Error', error.message, 'error');
             });
     }
-}
-
-function loadGoogleAPI() {
-    return new Promise((resolve, reject) => {
-        if (window.gapi) {
-            console.log("Google API already loaded");
-            resolve();
-            return;
-        }
-
-        // Create script element
-        const script = document.createElement('script');
-        script.src = 'https://apis.google.com/js/api.js';
-        script.onload = () => {
-            console.log("Google API script loaded");
-            gapi.load('client', () => {
-                console.log("Google API client loaded");
-                resolve();
-            });
-        };
-        script.onerror = () => {
-            console.error("Failed to load Google API");
-            reject(new Error('Failed to load Google API'));
-        };
-        document.head.appendChild(script);
-    });
 }
 
 // File upload handler for Firebase Storage
