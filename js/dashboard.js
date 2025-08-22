@@ -7,8 +7,7 @@ const IS_PRODUCTION = window.location.hostname.includes('github.io');
 const BASE_URL = IS_PRODUCTION ? 
     'https://raemonnn.github.io/lumitestweb' : 
     window.location.origin;
-
-
+    
 // DOM Elements
 let sidebar, mobileMenuBtn, notificationBell, fileUploadForm;
 
