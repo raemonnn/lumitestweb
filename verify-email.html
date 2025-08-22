@@ -263,70 +263,77 @@
 
         
         
-        function verifyEmailToken(token, memberId) {
-        console.log("Starting verification process...");
-        
-        // First try with full path (in case rules require auth)
-        database.ref('emailVerifications/' + memberId).once('value')
-            .then(snapshot => {
-                const verificationData = snapshot.val();
-                
-                if (!verificationData) {
-                    throw new Error('Invalid verification token');
-                }
-                
-                if (verificationData.token !== token) {
-                    throw new Error('Invalid verification token');
-                }
-                
-                if (verificationData.verified) {
-                    throw new Error('Email already verified');
-                }
-                
-                // Check if token is expired (24 hours)
-                const now = Date.now();
-                const tokenAge = now - verificationData.createdAt;
-                const twentyFourHours = 24 * 60 * 60 * 1000;
-                
-                if (tokenAge > twentyFourHours) {
-                    throw new Error('Verification link has expired');
-                }
-                
-                // Update verification record - this might fail due to permissions
-                return database.ref('emailVerifications/' + memberId).update({
-                    verified: true,
-                    verifiedAt: firebase.database.ServerValue.TIMESTAMP
-                }).catch(error => {
-                    console.warn("Could not update verification record:", error);
-                    // Continue anyway - the important part is updating the family member
-                    return true;
-                });
-            })
-            .then(() => {
-                // Get data again to ensure we have the latest
-                return database.ref('emailVerifications/' + memberId).once('value');
-            })
-            .then(snapshot => {
-                const verificationData = snapshot.val();
-                
-                // Update family member record
-                return database.ref('familyMembers/' + verificationData.userId + '/' + memberId).update({
-                    verified: true
-                }).catch(error => {
-                    console.error("Error updating family member:", error);
-                    throw new Error('Could not update family member status');
-                });
-            })
-            .then(() => {
-                console.log("Verification successful");
+function verifyEmailToken(token, memberId) {
+    console.log("Starting verification process...");
+    
+    // First try with full path (in case rules require auth)
+    database.ref('emailVerifications/' + memberId).once('value')
+        .then(snapshot => {
+            const verificationData = snapshot.val();
+            
+            if (!verificationData) {
+                throw new Error('Invalid verification token');
+            }
+            
+            if (verificationData.token !== token) {
+                throw new Error('Invalid verification token');
+            }
+            
+            if (verificationData.verified) {
+                // Already verified - still show success but different message
                 document.getElementById('verification-message').classList.add('d-none');
                 document.getElementById('success-message').classList.remove('d-none');
-            })
-            .catch(error => {
-                console.error('Verification error:', error);
-                showError(error.message);
+                document.querySelector('#success-message p').textContent = 
+                    'Your email has already been verified. You can now access the Lumiverse ecosystem.';
+                return null;
+            }
+            
+            // Check if token is expired (24 hours)
+            const now = Date.now();
+            const tokenAge = now - verificationData.createdAt;
+            const twentyFourHours = 24 * 60 * 60 * 1000;
+            
+            if (tokenAge > twentyFourHours) {
+                throw new Error('Verification link has expired. Please request a new one.');
+            }
+            
+            // Update verification record
+            return database.ref('emailVerifications/' + memberId).update({
+                verified: true,
+                verifiedAt: firebase.database.ServerValue.TIMESTAMP
             });
-    }
+        })
+        .then(() => {
+            if (!token || !memberId) return; // Skip if already verified
+            
+            // Get data again to ensure we have the latest
+            return database.ref('emailVerifications/' + memberId).once('value');
+        })
+        .then(snapshot => {
+            if (!snapshot.exists()) return;
+            
+            const verificationData = snapshot.val();
+            
+            // Update family member record
+            return database.ref('familyMembers/' + verificationData.userId + '/' + memberId).update({
+                verified: true
+            });
+        })
+        .then(() => {
+            console.log("Verification successful");
+            document.getElementById('verification-message').classList.add('d-none');
+            document.getElementById('success-message').classList.remove('d-none');
+            
+            // Redirect to login after 5 seconds
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 5000);
+        })
+        .catch(error => {
+            console.error('Verification error:', error);
+            showError(error.message);
+        });
+}
     
         
         function showError(message) {
