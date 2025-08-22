@@ -16,4 +16,4 @@ firebase.initializeApp(firebaseConfig);
 // Initialize Firebase services
 const auth = firebase.auth();
 const database = firebase.database();
-// const storage = firebase.storage(); // Note: Storage might require payment plan
+const storage = firebase.storage(); // Note: Storage might require payment plan
