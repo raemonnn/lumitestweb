@@ -2,7 +2,6 @@
 const EMAILJS_PUBLIC_KEY = 'BVrGFgKc_hTr1RAuP';
 const EMAILJS_SERVICE_ID = 'service_ceu00nu';
 const EMAILJS_TEMPLATE_ID = 'template_db0luo8';
-const storage = firebase.storage();
 
 const IS_PRODUCTION = window.location.hostname.includes('github.io');
 const BASE_URL = IS_PRODUCTION ? 
