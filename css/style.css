@@ -1268,6 +1268,12 @@
 }
 
 .uploaded-file-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background: var(--glass);
+    border-radius: 8px;
+    margin-bottom: 15px;
     transition: all 0.3s ease;
 }
 
