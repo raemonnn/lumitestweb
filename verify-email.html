@@ -11,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <style>
+        /* Define CSS variables first */
         :root {
             --primary: #6e00ff;
             --primary-dark: #4a00b4;
@@ -25,32 +26,38 @@
             --glass-border: rgba(255, 255, 255, 0.1);
         }
         
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             font-family: 'Inter', sans-serif;
+            background-color: #0a0a1a; /* Fallback color */
             background-color: var(--dark);
             color: var(--light);
             line-height: 1.6;
-            margin: 0;
-            padding: 0;
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: radial-gradient(circle at 70% 30%, rgba(110, 0, 255, 0.15) 0%, rgba(0, 0, 0, 0) 50%);
+            background-image: radial-gradient(circle at 70% 30%, rgba(110, 0, 255, 0.15) 0%, rgba(0, 0, 0, 0) 50%);
+            padding: 20px;
         }
         
         .cyberpunk-container {
             max-width: 500px;
             width: 100%;
-            padding: 20px;
         }
         
         .cyberpunk-card {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
             padding: 40px 30px;
             backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
             position: relative;
             overflow: hidden;
@@ -76,21 +83,23 @@
             font-family: 'Orbitron', sans-serif;
             font-weight: 700;
             font-size: 2.5rem;
-            background: var(--gradient);
+            background: linear-gradient(135deg, #6e00ff, #00f0ff);
+            -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
             margin-bottom: 10px;
         }
         
         .brand-subtitle {
-            color: var(--gray);
+            color: #a1a1aa;
             font-size: 1.1rem;
         }
         
-        h1, h2, h3, h4, h5, h6 {
+        h3 {
             font-family: 'Orbitron', sans-serif;
             font-weight: 600;
-            color: var(--lighter);
+            color: #ffffff;
+            margin-bottom: 15px;
         }
         
         .verification-status {
@@ -101,8 +110,8 @@
         .cyberpunk-spinner {
             width: 60px;
             height: 60px;
-            border: 3px solid var(--glass-border);
-            border-top: 3px solid var(--secondary);
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #00f0ff;
             border-radius: 50%;
             animation: spin 1s linear infinite;
             margin: 0 auto 20px;
@@ -114,8 +123,8 @@
         }
         
         .cyberpunk-alert {
-            background: var(--glass);
-            border: 1px solid var(--glass-border);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 12px;
             padding: 25px;
             margin: 20px 0;
@@ -131,7 +140,7 @@
         }
         
         .cyberpunk-btn {
-            background: var(--gradient);
+            background: linear-gradient(135deg, #6e00ff, #4a00b4);
             color: white;
             border: none;
             border-radius: 50px;
@@ -152,7 +161,7 @@
         
         .status-text {
             font-size: 1.2rem;
-            color: var(--gray);
+            color: #a1a1aa;
             margin-top: 15px;
         }
         
@@ -174,10 +183,26 @@
         
         @keyframes glow {
             from {
-                box-shadow: 0 0 10px -10px var(--secondary);
+                box-shadow: 0 0 10px -10px #00f0ff;
             }
             to {
                 box-shadow: 0 0 10px 10px rgba(0, 240, 255, 0.1);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 576px) {
+            .cyberpunk-card {
+                padding: 30px 20px;
+            }
+            
+            .brand-name {
+                font-size: 2rem;
+            }
+            
+            .cyberpunk-btn {
+                padding: 10px 25px;
+                font-size: 0.9rem;
             }
         }
     </style>
@@ -228,16 +253,16 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <script>
-        // Your Firebase config - MAKE SURE TO ADD YOUR ACTUAL CONFIG HERE!
+        // Your Firebase config
         const firebaseConfig = {
-        apiKey: "AIzaSyC3Sx9IwJHwqVvwRjfdgNuWV7HwJ4llr9M",
-        authDomain: "lumiverse-4b1de.firebaseapp.com",
-        databaseURL: "https://lumiverse-4b1de-default-rtdb.firebaseio.com",
-        projectId: "lumiverse-4b1de",
-        storageBucket: "lumiverse-4b1de.firebasestorage.app",
-        messagingSenderId: "262219457078",
-        appId: "1:262219457078:web:d7ca3297ab27ea4a8bee97",
-        measurementId: "G-7Q4J2Z506S"
+            apiKey: "AIzaSyC3Sx9IwJHwqVvwRjfdgNuWV7HwJ4llr9M",
+            authDomain: "lumiverse-4b1de.firebaseapp.com",
+            databaseURL: "https://lumiverse-4b1de-default-rtdb.firebaseio.com",
+            projectId: "lumiverse-4b1de",
+            storageBucket: "lumiverse-4b1de.firebasestorage.app",
+            messagingSenderId: "262219457078",
+            appId: "1:262219457078:web:d7ca3297ab27ea4a8bee97",
+            measurementId: "G-7Q4J2Z506S"
         };
         
         // Initialize Firebase
@@ -261,80 +286,77 @@
             verifyEmailToken(token, memberId);
         });
 
-        
-        
-function verifyEmailToken(token, memberId) {
-    console.log("Starting verification process...");
-    
-    // First try with full path (in case rules require auth)
-    database.ref('emailVerifications/' + memberId).once('value')
-        .then(snapshot => {
-            const verificationData = snapshot.val();
+        function verifyEmailToken(token, memberId) {
+            console.log("Starting verification process...");
             
-            if (!verificationData) {
-                throw new Error('Invalid verification token');
-            }
-            
-            if (verificationData.token !== token) {
-                throw new Error('Invalid verification token');
-            }
-            
-            if (verificationData.verified) {
-                // Already verified - still show success but different message
-                document.getElementById('verification-message').classList.add('d-none');
-                document.getElementById('success-message').classList.remove('d-none');
-                document.querySelector('#success-message p').textContent = 
-                    'Your email has already been verified. You can now access the Lumiverse ecosystem.';
-                return null;
-            }
-            
-            // Check if token is expired (24 hours)
-            const now = Date.now();
-            const tokenAge = now - verificationData.createdAt;
-            const twentyFourHours = 24 * 60 * 60 * 1000;
-            
-            if (tokenAge > twentyFourHours) {
-                throw new Error('Verification link has expired. Please request a new one.');
-            }
-            
-            // Update verification record
-            return database.ref('emailVerifications/' + memberId).update({
-                verified: true,
-                verifiedAt: firebase.database.ServerValue.TIMESTAMP
-            });
-        })
-        .then(() => {
-            if (!token || !memberId) return; // Skip if already verified
-            
-            // Get data again to ensure we have the latest
-            return database.ref('emailVerifications/' + memberId).once('value');
-        })
-        .then(snapshot => {
-            if (!snapshot.exists()) return;
-            
-            const verificationData = snapshot.val();
-            
-            // Update family member record
-            return database.ref('familyMembers/' + verificationData.userId + '/' + memberId).update({
-                verified: true
-            });
-        })
-        .then(() => {
-            console.log("Verification successful");
-            document.getElementById('verification-message').classList.add('d-none');
-            document.getElementById('success-message').classList.remove('d-none');
-            
-            // Redirect to login after 5 seconds
-            setTimeout(() => {
-                window.location.href = 'login.html';
-            }, 5000);
-        })
-        .catch(error => {
-            console.error('Verification error:', error);
-            showError(error.message);
-        });
-}
-    
+            // First try with full path (in case rules require auth)
+            database.ref('emailVerifications/' + memberId).once('value')
+                .then(snapshot => {
+                    const verificationData = snapshot.val();
+                    
+                    if (!verificationData) {
+                        throw new Error('Invalid verification token');
+                    }
+                    
+                    if (verificationData.token !== token) {
+                        throw new Error('Invalid verification token');
+                    }
+                    
+                    if (verificationData.verified) {
+                        // Already verified - still show success but different message
+                        document.getElementById('verification-message').classList.add('d-none');
+                        document.getElementById('success-message').classList.remove('d-none');
+                        document.querySelector('#success-message p').textContent = 
+                            'Your email has already been verified. You can now access the Lumiverse ecosystem.';
+                        return null;
+                    }
+                    
+                    // Check if token is expired (24 hours)
+                    const now = Date.now();
+                    const tokenAge = now - verificationData.createdAt;
+                    const twentyFourHours = 24 * 60 * 60 * 1000;
+                    
+                    if (tokenAge > twentyFourHours) {
+                        throw new Error('Verification link has expired. Please request a new one.');
+                    }
+                    
+                    // Update verification record
+                    return database.ref('emailVerifications/' + memberId).update({
+                        verified: true,
+                        verifiedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                })
+                .then(() => {
+                    if (!token || !memberId) return; // Skip if already verified
+                    
+                    // Get data again to ensure we have the latest
+                    return database.ref('emailVerifications/' + memberId).once('value');
+                })
+                .then(snapshot => {
+                    if (!snapshot.exists()) return;
+                    
+                    const verificationData = snapshot.val();
+                    
+                    // Update family member record
+                    return database.ref('familyMembers/' + verificationData.userId + '/' + memberId).update({
+                        verified: true
+                    });
+                })
+                .then(() => {
+                    console.log("Verification successful");
+                    document.getElementById('verification-message').classList.add('d-none');
+                    document.getElementById('success-message').classList.remove('d-none');
+                    
+                    // Redirect to login after 5 seconds
+                    setTimeout(() => {
+                        window.location.href = 'login.html';
+                    }, 5000);
+                })
+                .catch(error => {
+                    console.error('Verification error:', error);
+                    showError(error.message);
+                });
+        }
         
         function showError(message) {
             setTimeout(() => {
@@ -343,8 +365,6 @@ function verifyEmailToken(token, memberId) {
                 document.getElementById('error-text').textContent = message;
             }, 1000);
         }
-
-        
     </script>
 </body>
 </html>
