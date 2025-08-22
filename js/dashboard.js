@@ -8,6 +8,11 @@ const GOOGLE_DRIVE_CLIENT_ID = '262219457078-rn6910407v4pccdon3iivhmla4rifdl3.ap
 const GOOGLE_DRIVE_API_KEY = 'AIzaSyC3Sx9IwJHwqVvwRjfdgNuWV7HwJ4llr9M';     // Replace with your actual API Key
 const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
+const IS_PRODUCTION = window.location.hostname.includes('github.io');
+const BASE_URL = IS_PRODUCTION ? 
+    'https://github.com/raemonnn/lumiversetesting' : 
+    window.location.origin;
+
 // Load Google API Client
 function loadGoogleAPI() {
     return new Promise((resolve, reject) => {
@@ -389,7 +394,7 @@ function sendInvitationEmail(email, name, memberId, password = null) {
             FamilyMemberName: name,
             InviterName: inviterName,
             InviterInitials: inviterInitials,
-            VerificationLink: `${window.location.origin}/verify-email.html?token=${verificationToken}&member=${memberId}`,
+            VerificationLink: `${BASE_URL}/verify-email.html?token=${verificationToken}&member=${memberId}`,
             temporary_password: password || 'Please contact admin for password'
         };
 
@@ -2139,8 +2144,6 @@ function enhanceExistingFunctionsWithNotifications() {
             });
     };
 }
-
-
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
