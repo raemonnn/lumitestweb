@@ -2,11 +2,7 @@
 const EMAILJS_PUBLIC_KEY = 'BVrGFgKc_hTr1RAuP';
 const EMAILJS_SERVICE_ID = 'service_ceu00nu';
 const EMAILJS_TEMPLATE_ID = 'template_db0luo8';
-
-// Google Drive API Configuration
-const GOOGLE_DRIVE_CLIENT_ID = '262219457078-rn6910407v4pccdon3iivhmla4rifdl3.apps.googleusercontent.com'; // Replace with your actual Client ID
-const GOOGLE_DRIVE_API_KEY = 'AIzaSyC3Sx9IwJHwqVvwRjfdgNuWV7HwJ4llr9M';     // Replace with your actual API Key
-const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const storage = firebase.storage();
 
 const IS_PRODUCTION = window.location.hostname.includes('github.io');
 const BASE_URL = IS_PRODUCTION ? 
@@ -40,25 +36,6 @@ function loadGoogleAPI() {
     });
 }
 
-// Initialize Google Drive
-async function initGoogleDrive() {
-    try {
-        await loadGoogleAPI();
-        
-        await gapi.client.init({
-            'apiKey': GOOGLE_DRIVE_API_KEY,
-            'clientId': GOOGLE_DRIVE_CLIENT_ID,
-            'scope': GOOGLE_DRIVE_SCOPE,
-            'discoveryDocs': ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-        });
-        
-        console.log("Google Drive API initialized");
-        return true;
-    } catch (error) {
-        console.error("Error initializing Google Drive:", error);
-        return false;
-    }
-}
 
 // DOM Elements
 let sidebar, mobileMenuBtn, notificationBell, fileUploadForm;
@@ -553,22 +530,6 @@ function setupEventListeners() {
             deleteFile(fileId);
         }
     });
-
-    // Google Drive authentication
-    const googleDriveAuthBtn = document.getElementById('google-drive-auth');
-    if (googleDriveAuthBtn) {
-        googleDriveAuthBtn.addEventListener('click', async () => {
-            try {
-                await initGoogleDrive();
-                await gapi.auth2.getAuthInstance().signIn();
-                showToast('Success', 'Google Drive connected successfully', 'success');
-                googleDriveAuthBtn.style.display = 'none';
-            } catch (error) {
-                console.error('Google Drive auth error:', error);
-                showToast('Error', 'Failed to connect Google Drive', 'error');
-            }
-        });
-    }
         
     // Load uploaded files when customization tab is shown
     const customizationTab = document.querySelector('[href="#customization"]');
@@ -1062,31 +1023,11 @@ function loadGoogleAPI() {
     });
 }
 
-// Initialize Google Drive
-async function initGoogleDrive() {
-    try {
-        await loadGoogleAPI();
-        
-        await gapi.client.init({
-            'clientId': GOOGLE_DRIVE_CLIENT_ID,
-            'scope': GOOGLE_DRIVE_SCOPE,
-            'discoveryDocs': ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
-        });
-        
-        console.log("Google Drive API initialized");
-        return true;
-    } catch (error) {
-        console.error("Error initializing Google Drive:", error);
-        return false;
-    }
-}
-
-// File upload handler for Google Drive
-// File upload handler for Google Drive
+// File upload handler for Firebase Storage
 function handleFileUpload(e) {
     e.preventDefault();
     
-    console.log('File upload initiated');
+    console.log('File upload initiated with Firebase Storage');
     
     const fileInput = document.querySelector('#file-upload');
     const message = document.querySelector('#file-message').value;
@@ -1113,15 +1054,15 @@ function handleFileUpload(e) {
     uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Uploading...';
     uploadBtn.disabled = true;
     
-    // Upload to Google Drive
-    uploadFileToGoogleDrive(file)
+    // Upload to Firebase Storage
+    uploadFileToFirebaseStorage(file)
         .then(uploadResponse => {
-            console.log('File uploaded successfully to Google Drive:', uploadResponse);
+            console.log('File uploaded successfully to Firebase Storage:', uploadResponse);
             return storeFileMetadata(file, message, uploadResponse);
         })
         .then(() => {
             // Success
-            alert('Customization request submitted successfully! Your file is now uploaded to Google Drive.');
+            alert('Customization request submitted successfully! Your file is now uploaded.');
             document.querySelector('#file-upload-form').reset();
             
             // Create notification
@@ -1150,100 +1091,29 @@ function handleFileUpload(e) {
         });
 }
 
-// Upload file to Google Drive
-async function uploadFileToGoogleDrive(file) {
+// Upload file to Firebase Storage
+async function uploadFileToFirebaseStorage(file) {
     try {
-        // Initialize Google Drive if not already initialized
-        if (!gapi.client.drive) {
-            const initialized = await initGoogleDrive();
-            if (!initialized) {
-                throw new Error('Failed to initialize Google Drive');
-            }
-        }
+        // Create a storage reference
+        const storageRef = storage.ref();
+        const fileRef = storageRef.child(`customizations/${currentUser.uid}/${Date.now()}_${file.name}`);
         
-        // Get authentication token
-        const authResponse = gapi.auth.getToken();
-        if (!authResponse || !authResponse.access_token) {
-            // Need to authenticate first
-            await gapi.auth2.getAuthInstance().signIn();
-            // Get token again after authentication
-            const newAuthResponse = gapi.auth.getToken();
-            if (!newAuthResponse || !newAuthResponse.access_token) {
-                throw new Error('Not authenticated with Google Drive');
-            }
-        }
+        // Upload the file
+        const snapshot = await fileRef.put(file);
         
-        const accessToken = gapi.auth.getToken().access_token;
-        
-        // Create file metadata
-        const metadata = {
-            'name': file.name,
-            'mimeType': file.type,
-            'parents': ['root'] // You can specify folder ID here if needed
-        };
-        
-        // Create form data
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', file);
-        
-        // Upload file
-        const response = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-            method: 'POST',
-            headers: new Headers({
-                'Authorization': 'Bearer ' + accessToken
-            }),
-            body: form
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error?.message || 'Upload failed');
-        }
-        
-        const fileData = await response.json();
-        
-        // Set permissions to make file accessible (optional)
-        await setFilePermissions(fileData.id, accessToken);
-        
-        // Generate a shareable link
-        const shareableLink = `https://drive.google.com/file/d/${fileData.id}/view`;
+        // Get the download URL
+        const downloadURL = await snapshot.ref.getDownloadURL();
         
         return {
-            fileUrl: shareableLink,
-            fileId: fileData.id,
-            downloadUrl: shareableLink,
-            expires: 'Never (Google Drive)'
+            fileUrl: downloadURL,
+            fileId: snapshot.ref.fullPath,
+            downloadUrl: downloadURL,
+            expires: 'Never (Firebase Storage)'
         };
         
     } catch (error) {
-        console.error('Google Drive upload error:', error);
+        console.error('Firebase Storage upload error:', error);
         throw error;
-    }
-}
-
-// Set file permissions to make it accessible
-async function setFilePermissions(fileId, accessToken) {
-    try {
-        const permission = {
-            'type': 'anyone',
-            'role': 'reader'
-        };
-        
-        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
-            method: 'POST',
-            headers: new Headers({
-                'Authorization': 'Bearer ' + accessToken,
-                'Content-Type': 'application/json'
-            }),
-            body: JSON.stringify(permission)
-        });
-        
-        if (!response.ok) {
-            console.warn('Failed to set permissions, but file was uploaded');
-        }
-    } catch (error) {
-        console.warn('Error setting permissions:', error);
     }
 }
 
@@ -1259,7 +1129,7 @@ function storeFileMetadata(file, message, uploadResponse) {
         message: message,
         status: 'pending',
         uploadedAt: firebase.database.ServerValue.TIMESTAMP,
-        storageService: 'google_drive' // Changed from 'tmpfiles.org'
+        storageService: 'firebase_storage' // Changed from 'google_drive'
     });
 }
 
@@ -1369,32 +1239,25 @@ function getStatusBadgeClass(status) {
 async function deleteFile(fileId) {
     if (confirm('Are you sure you want to delete this file?')) {
         try {
-            // First get file data to know if it's on Google Drive
+            // First get file data to know the storage service
             const fileRef = database.ref('customizationRequests/' + currentUser.uid + '/' + fileId);
             const snapshot = await fileRef.once('value');
             const fileData = snapshot.val();
             
-            // If file is stored on Google Drive, try to delete it there too
-            if (fileData.storageService === 'google_drive' && fileData.fileId) {
+            // If file is stored on Firebase Storage, delete it there too
+            if (fileData.storageService === 'firebase_storage' && fileData.fileId) {
                 try {
-                    await initGoogleDrive();
-                    const authResponse = gapi.auth.getToken();
-                    
-                    if (authResponse && authResponse.access_token) {
-                        await fetch(`https://www.googleapis.com/drive/v3/files/${fileData.fileId}`, {
-                            method: 'DELETE',
-                            headers: new Headers({
-                                'Authorization': 'Bearer ' + authResponse.access_token
-                            })
-                        });
-                        console.log("File deleted from Google Drive");
-                    }
-                } catch (driveError) {
-                    console.warn("Could not delete from Google Drive, but continuing with Firebase deletion:", driveError);
+                    // Create a reference to the file
+                    const fileRef = storage.ref(fileData.fileId);
+                    // Delete the file
+                    await fileRef.delete();
+                    console.log("File deleted from Firebase Storage");
+                } catch (storageError) {
+                    console.warn("Could not delete from Firebase Storage, but continuing with Firebase deletion:", storageError);
                 }
             }
             
-            // Delete from Firebase
+            // Delete from Firebase Database
             await fileRef.remove();
             showToast('Success', 'File deleted successfully', 'success');
             // Reload the files list

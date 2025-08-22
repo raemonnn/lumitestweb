@@ -39,12 +39,6 @@
                     <div class="user-avatar"></div>
                     <span class="user-fullname"></span>
                 </div>
-                
-                <!-- Add Google Drive Connect Button Here -->
-                <button id="google-drive-auth" class="btn btn-outline-info me-2" style="display: none;">
-                    <i class="fab fa-google-drive"></i> Connect Google Drive
-                </button>
-                
                 <div class="notification-bell">
                     <i class="fas fa-bell"></i>
                     <span class="notification-badge" style="display: none;"></span>
@@ -395,6 +389,8 @@
 
     <!-- Toast Container -->
     <div id="toast-container" class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100"></div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
 
     <!-- Add this before your dashboard.js script -->
     <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3.2.0/dist/email.min.js"></script>
