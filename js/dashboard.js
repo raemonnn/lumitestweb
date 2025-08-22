@@ -10,7 +10,7 @@ const GOOGLE_DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 
 const IS_PRODUCTION = window.location.hostname.includes('github.io');
 const BASE_URL = IS_PRODUCTION ? 
-    'https://github.com/raemonnn/lumiversetesting' : 
+    'https://github.com/raemonnn/lumiwebtest' : 
     window.location.origin;
 
 // Load Google API Client
