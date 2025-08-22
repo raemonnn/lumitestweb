@@ -7,7 +7,7 @@ const IS_PRODUCTION = window.location.hostname.includes('github.io');
 const BASE_URL = IS_PRODUCTION ? 
     'https://raemonnn.github.io/lumitestweb' : 
     window.location.origin;
-    
+
 // DOM Elements
 let sidebar, mobileMenuBtn, notificationBell, fileUploadForm;
 
@@ -58,11 +58,30 @@ function initDashboard() {
                     deleteFile(fileId);
                 }
             });
+
+            // Load files if customization tab is active
+            const activeTab = document.querySelector('.tab-pane.active');
+            if (activeTab && activeTab.id === 'customization') {
+                loadUploadedFiles();
+            }
             
             // Load uploaded files when customization tab is shown
             const customizationTab = document.querySelector('[href="#customization"]');
             if (customizationTab) {
-                customizationTab.addEventListener('shown.bs.tab', function() {
+                customizationTab.addEventListener('click', function(e) {
+                    // Only handle clicks that will actually show the tab
+                    if (!this.classList.contains('active')) {
+                        console.log("Customization tab clicked, loading files...");
+                        // Small timeout to ensure tab is visible before loading
+                        setTimeout(() => {
+                            loadUploadedFiles();
+                        }, 100);
+                    }
+                });
+    
+                // Also load when tab is shown via Bootstrap
+                document.getElementById('customization').addEventListener('shown.bs.tab', function() {
+                    console.log("Customization tab shown, loading files...");
                     loadUploadedFiles();
                 });
             }
@@ -966,7 +985,7 @@ function handleFileUpload(e) {
     
     if (!file) {
         console.log('No file selected');
-        alert('Please select a file to upload');
+        showToast('Please select a file to upload');
         return;
     }
     
@@ -975,7 +994,7 @@ function handleFileUpload(e) {
     // Check file type (allow zip files)
     const allowedTypes = ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'];
     if (!allowedTypes.includes(file.type) && !file.name.endsWith('.zip')) {
-        alert('Please upload a ZIP file only');
+        showToast('Please upload a ZIP file only');
         return;
     }
     
@@ -993,7 +1012,7 @@ function handleFileUpload(e) {
         })
         .then(() => {
             // Success
-            alert('Customization request submitted successfully! Your file is now uploaded.');
+            showToast('Customization request submitted successfully! Your file is now uploaded.');
             document.querySelector('#file-upload-form').reset();
             
             // Create notification
@@ -1013,7 +1032,7 @@ function handleFileUpload(e) {
         })
         .catch(error => {
             console.error('Upload failed:', error);
-            alert('Error uploading file: ' + error.message);
+            showToast('Error uploading file: ' + error.message);
         })
         .finally(() => {
             // Restore button state
@@ -1066,18 +1085,31 @@ function storeFileMetadata(file, message, uploadResponse) {
 
 // Load uploaded files
 function loadUploadedFiles() {
-    if (!currentUser) return;
+    if (!currentUser) {
+        console.log("No user, cannot load files");
+        return;
+    }
     
-    console.log('Loading uploaded files...');
+    console.log('Loading uploaded files for user:', currentUser.uid);
+    
+    const filesContainer = document.querySelector('.customization-requests');
+    if (!filesContainer) {
+        console.log('Files container not found');
+        return;
+    }
+    
+    // Show loading state
+    filesContainer.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading files...</p>
+        </div>
+    `;
     
     database.ref('customizationRequests/' + currentUser.uid).orderByChild('uploadedAt').once('value')
         .then((snapshot) => {
-            const filesContainer = document.querySelector('.customization-requests');
-            if (!filesContainer) {
-                console.log('Files container not found');
-                return;
-            }
-            
             filesContainer.innerHTML = '';
             
             if (!snapshot.exists()) {
@@ -1102,6 +1134,12 @@ function loadUploadedFiles() {
         })
         .catch(error => {
             console.error('Error loading files:', error);
+            filesContainer.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error loading files: ${error.message}
+                </div>
+            `;
         });
 }
 
@@ -1109,23 +1147,25 @@ function loadUploadedFiles() {
 function createFileElement(fileData) {
     const fileElement = document.createElement('div');
     fileElement.className = 'uploaded-file-item card mb-3';
+    fileElement.dataset.fileId = fileData.id;
     
     const formattedDate = new Date(fileData.uploadedAt).toLocaleDateString();
     const formattedSize = formatFileSize(fileData.fileSize);
+    const statusClass = getStatusBadgeClass(fileData.status);
     
     fileElement.innerHTML = `
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
-                <div>
+                <div class="flex-grow-1">
                     <h6 class="card-title mb-1">${fileData.fileName}</h6>
-                    <p class="card-text text-muted small mb-1">
+                    <p class="card-text small mb-1">
                         ${formattedSize} • ${formattedDate}
                     </p>
                     <p class="card-text small">${fileData.message || 'No message'}</p>
-                    <p class="card-text text-muted small">Expires: ${fileData.expires || '14 days'}</p>
-                    <span class="badge ${getStatusBadgeClass(fileData.status)}">${fileData.status}</span>
+                    <p class="card-text small">Expires: ${fileData.expires || '14 days'}</p>
+                    <span class="badge ${statusClass}">${fileData.status}</span>
                 </div>
-                <div class="btn-group">
+                <div class="btn-group ms-3">
                     <a href="${fileData.downloadUrl || fileData.fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary">
                         <i class="fas fa-download"></i> Download
                     </a>
@@ -1139,9 +1179,12 @@ function createFileElement(fileData) {
     
     // Add event listener for delete button
     const deleteBtn = fileElement.querySelector('.delete-file');
-    deleteBtn.addEventListener('click', function() {
-        deleteFile(this.dataset.id);
-    });
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            deleteFile(this.dataset.id);
+        });
+    }
     
     return fileElement;
 }
@@ -1168,34 +1211,46 @@ function getStatusBadgeClass(status) {
 
 // Delete file
 async function deleteFile(fileId) {
-    if (confirm('Are you sure you want to delete this file?')) {
-        try {
-            // First get file data to know the storage service
-            const fileRef = database.ref('customizationRequests/' + currentUser.uid + '/' + fileId);
-            const snapshot = await fileRef.once('value');
-            const fileData = snapshot.val();
-            
-            // If file is stored on Firebase Storage, delete it there too
-            if (fileData.storageService === 'firebase_storage' && fileData.fileId) {
-                try {
-                    // Create a reference to the file
-                    const fileRef = storage.ref(fileData.fileId);
-                    // Delete the file
-                    await fileRef.delete();
-                    console.log("File deleted from Firebase Storage");
-                } catch (storageError) {
-                    console.warn("Could not delete from Firebase Storage, but continuing with Firebase deletion:", storageError);
-                }
-            }
-            
-            // Delete from Firebase Database
-            await fileRef.remove();
-            showToast('Success', 'File deleted successfully', 'success');
-            // Reload the files list
-            loadUploadedFiles();
-        } catch (error) {
-            showToast('Error', 'Failed to delete file: ' + error.message, 'error');
+    if (!confirm('Are you sure you want to delete this file?')) return;
+    
+    try {
+        // First get file data to know the storage service
+        const fileRef = database.ref('customizationRequests/' + currentUser.uid + '/' + fileId);
+        const snapshot = await fileRef.once('value');
+        const fileData = snapshot.val();
+        
+        if (!fileData) {
+            throw new Error('File not found');
         }
+        
+        // If file is stored on Firebase Storage, delete it there too
+        if (fileData.storageService === 'firebase_storage' && fileData.fileId) {
+            try {
+                // Create a reference to the file
+                const fileStorageRef = storage.ref(fileData.fileId);
+                // Delete the file
+                await fileStorageRef.delete();
+                console.log("File deleted from Firebase Storage");
+            } catch (storageError) {
+                console.warn("Could not delete from Firebase Storage, but continuing with Firebase deletion:", storageError);
+            }
+        }
+        
+        // Delete from Firebase Database
+        await fileRef.remove();
+        showToast('Success', 'File deleted successfully', 'success');
+        
+        // Remove the file element from UI immediately
+        const fileElement = document.querySelector(`[data-file-id="${fileId}"]`);
+        if (fileElement) {
+            fileElement.remove();
+        }
+        
+        // Reload the files list to ensure UI is updated
+        loadUploadedFiles();
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Error', 'Failed to delete file: ' + error.message, 'error');
     }
 }
 
@@ -1938,6 +1993,15 @@ function enhanceExistingFunctionsWithNotifications() {
             });
     };
 }
+
+    // Add refresh button functionality
+    const refreshFilesBtn = document.getElementById('refresh-files-btn');
+    if (refreshFilesBtn) {
+        refreshFilesBtn.addEventListener('click', function() {
+            loadUploadedFiles();
+            showToast('Info', 'Refreshing files...', 'info');
+        });
+    }
 
 // Initialize dashboard when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
