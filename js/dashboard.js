@@ -33,20 +33,6 @@ function initDashboard() {
             currentUser = user;
             console.log("User authenticated:", user.uid);
             
-            // Initialize Google Drive (but don't require auth yet)
-            try {
-                await loadGoogleAPI();
-                console.log("Google API loaded successfully");
-                
-                // Show Google Drive auth button if not authenticated
-                const googleDriveAuthBtn = document.getElementById('google-drive-auth');
-                if (googleDriveAuthBtn && !gapi.auth.getToken()) {
-                    googleDriveAuthBtn.style.display = 'block';
-                }
-            } catch (error) {
-                console.warn("Google API not available:", error);
-            }
-            
             loadUserData();
             loadFamilyMembers();
             loadWeather();
