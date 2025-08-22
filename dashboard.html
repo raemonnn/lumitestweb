@@ -404,6 +404,30 @@
         })();
     </script>
 
+    <script>
+    // Cache busting function
+    function cacheBust(url) {
+        const timestamp = new Date().getTime();
+        return url.includes('?') ? `${url}&v=${timestamp}` : `${url}?v=${timestamp}`;
+    }
+
+    // Load scripts with cache busting
+    document.addEventListener('DOMContentLoaded', function() {
+        // List of scripts to load with cache busting
+        const scripts = [
+            'js/firebase-config.js',
+            'js/auth.js',
+            'js/dashboard.js'
+        ];
+        
+        scripts.forEach(script => {
+            const scriptEl = document.createElement('script');
+            scriptEl.src = cacheBust(script);
+            document.body.appendChild(scriptEl);
+        });
+    });
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
