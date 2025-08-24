@@ -327,6 +327,17 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
     <script>
+
+        function getParameterByName(name) {
+        const url = window.location.href;
+        name = name.replace(/[\[\]]/g, '\\$&');
+        const regex = new RegExp('[?&]' + name + '(=([^&#]*)|&|#|$)');
+        const results = regex.exec(url);
+        if (!results) return null;
+        if (!results[2]) return '';
+        return decodeURIComponent(results[2].replace(/\+/g, ' '));
+    }
+
         // Your Firebase config
         const firebaseConfig = {
             apiKey: "AIzaSyC3Sx9IwJHwqVvwRjfdgNuWV7HwJ4llr9M",
@@ -345,9 +356,8 @@
         
         // Handle verification when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            const memberId = urlParams.get('member');
+            const token = getParameterByName('token');
+            const memberId = getParameterByName('member');
             
             console.log("Token:", token);
             console.log("Member ID:", memberId);
@@ -400,20 +410,23 @@
                     return database.ref('emailChangeVerifications/' + memberId).update({
                         verified: true,
                         verifiedAt: firebase.database.ServerValue.TIMESTAMP
+                    }).then(() => {
+                        // Return the verification data for the next step
+                        return verificationData;
                     });
                 })
-                .then(() => {
-                    // Now update the family member record
-                    return database.ref('emailChangeVerifications/' + memberId).once('value');
-                })
-                .then(snapshot => {
-                    const verificationData = snapshot.val();
+                .then(verificationData => {
+                    if (!verificationData) return; // Already verified case
                     
-                    // Update the family member's email verification status
+                    console.log("Updating family member email from:", verificationData.oldEmail, "to:", verificationData.newEmail);
+                    
+                    // Update the family member's email and verification status
                     return database.ref('familyMembers/' + verificationData.userId + '/' + memberId).update({
+                        email: verificationData.newEmail, // THIS IS THE CRITICAL LINE - UPDATE THE EMAIL!
                         emailVerified: true,
                         emailVerificationPending: false,
-                        verificationToken: null // Clear verification token
+                        previousEmail: verificationData.oldEmail, // Store old email for reference
+                        emailUpdatedAt: firebase.database.ServerValue.TIMESTAMP
                     });
                 })
                 .then(() => {
