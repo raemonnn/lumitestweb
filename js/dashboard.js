@@ -865,7 +865,7 @@ function addFamilyMember(memberData) {
 
 // Email invitation function with password information
 function sendInvitationEmail(email, name, memberId, password = null) {
-    console.log("Sending invitation to:", email);
+    console.log("Sending NEW MEMBER invitation to:", email);
     
     // Check if EmailJS is loaded
     if (typeof emailjs === 'undefined') {
@@ -897,19 +897,20 @@ function sendInvitationEmail(email, name, memberId, password = null) {
         const inviterName = document.querySelector('.user-fullname').textContent;
         const inviterInitials = inviterName.split(' ').map(n => n[0]).join('').toUpperCase();
         
-        // CORRECTED: Proper EmailJS template parameters
+        // CORRECTED: Template parameters that match your HTML template EXACTLY
         const templateParams = {
-            to_email: email, // MUST be exactly 'to_email' for recipient
-            to_name: name,   // Optional but recommended
+            to_email: email, // For EmailJS routing
+            to_name: name,
             from_name: inviterName,
             FamilyMemberName: name,
             InviterName: inviterName,
             InviterInitials: inviterInitials,
-            VerificationLink: `${BASE_URL}/verify-email.html?token=${verificationToken}&member=${memberId}`,
+            VerificationLink: `${BASE_URL}/verify-email.html?token=${verificationToken}&member=${memberId}`, // Capital V!
             temporary_password: password || 'Please contact admin for password'
         };
 
-        console.log("Sending email with params:", templateParams);
+        console.log("Sending NEW MEMBER email with template:", EMAILJS_TEMPLATE_ID);
+        console.log("Template parameters:", templateParams);
 
         // Send email using EmailJS
         return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY)
@@ -935,7 +936,6 @@ function sendInvitationEmail(email, name, memberId, password = null) {
             });
     });
 }
-
 
 // Generate verification token
 function generateVerificationToken() {
@@ -1747,35 +1747,33 @@ function sendEmailChangeVerification(member, newEmail, verificationToken, member
     // Get head of family's name
     const headOfFamilyName = document.querySelector('.user-fullname').textContent;
 
-    // Store verification data in the publicly accessible location
+    // Store verification data
     const verificationData = {
         token: verificationToken,
         oldEmail: member.email,
         newEmail: newEmail,
-        userId: currentUser.uid, // The head of family's UID
+        userId: currentUser.uid,
         createdAt: Date.now(),
         verified: false
     };
     
-    // Prepare template parameters for EMAIL CHANGE template
+    // CORRECTED: Template parameters that match your HTML template
     const templateParams = {
-        to_email: newEmail,
+        to_email: newEmail, // This is for EmailJS routing
         to_name: member.fullName,
         from_name: headOfFamilyName,
         FamilyMemberName: member.fullName,
         InviterName: headOfFamilyName,
-        old_email: member.email,
-        new_email: newEmail,
+        old_email: member.email, // This matches {{old_email}} in template
+        new_email: newEmail,     // This matches {{new_email}} in template
         request_date: new Date().toLocaleDateString(),
         verification_link: `${BASE_URL}/verify-email-change.html?token=${verificationToken}&member=${memberId}`
     };
 
     console.log("Sending EMAIL CHANGE verification with params:", templateParams);
 
-    // Send email using EmailJS
     return database.ref('emailChangeVerifications/' + memberId).set(verificationData)
         .then(() => {
-            // Then send the email
             return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_EMAIL_CHANGE_ID, templateParams, EMAILJS_PUBLIC_KEY);
         })
         .then((response) => {
