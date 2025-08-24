@@ -812,10 +812,12 @@ function addFamilyMember(memberData) {
         memberData.access = accessObj;
     }
     
-    // Add the required fields
+    // Add the required fields including email verification status
     memberData.invitedBy = currentUser.uid;
     memberData.invitationSent = false;
     memberData.verified = false;
+    memberData.emailVerified = false; // Add this line
+    memberData.emailVerificationPending = true; // Add this line
     memberData.createdAt = firebase.database.ServerValue.TIMESTAMP;
     
     return database.ref('familyMembers/' + currentUser.uid).push(memberData)
