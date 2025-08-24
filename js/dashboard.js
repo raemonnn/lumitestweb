@@ -1665,6 +1665,16 @@ function sendEmailChangeVerification(member, newEmail, verificationToken, member
     
     // Get head of family's name
     const headOfFamilyName = document.querySelector('.user-fullname').textContent;
+
+    // Store verification data in the publicly accessible location
+    const verificationData = {
+        token: verificationToken,
+        oldEmail: member.email,
+        newEmail: newEmail,
+        userId: currentUser.uid, // The head of family's UID
+        createdAt: Date.now(),
+        verified: false
+    };
     
     // Prepare template parameters
     const templateParams = {
@@ -1682,20 +1692,24 @@ function sendEmailChangeVerification(member, newEmail, verificationToken, member
     console.log("Sending email change verification with params:", templateParams);
 
     // Send email using EmailJS
-    return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_EMAIL_CHANGE_ID, templateParams, EMAILJS_PUBLIC_KEY)
-        .then((response) => {
-            console.log('Email change verification sent successfully:', response);
-            showToast('Verification Sent', `A verification email has been sent to ${newEmail}`, 'success');
-            return Promise.resolve();
-        })
-        .catch((error) => {
-            console.error('Failed to send email change verification:', error);
-            let errorMessage = 'Failed to send verification email';
-            if (error.text) errorMessage += ': ' + error.text;
-            showToast('Error', errorMessage, 'error');
-            throw error;
-        });
-}
+    return database.ref('emailChangeVerifications/' + memberId).set(verificationData)
+            .then(() => {
+                // Then send the email
+                return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_EMAIL_CHANGE_ID, templateParams, EMAILJS_PUBLIC_KEY);
+            })
+            .then((response) => {
+                console.log('Email change verification sent successfully:', response);
+                showToast('Verification Sent', `A verification email has been sent to ${newEmail}`, 'success');
+                return Promise.resolve();
+            })
+            .catch((error) => {
+                console.error('Failed to send email change verification:', error);
+                let errorMessage = 'Failed to send verification email';
+                if (error.text) errorMessage += ': ' + error.text;
+                showToast('Error', errorMessage, 'error');
+                throw error;
+            });
+    }
 
 // Edit member handler
 function handleEditMember(e) {

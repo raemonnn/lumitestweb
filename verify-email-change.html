@@ -363,56 +363,57 @@
         function verifyEmailChangeToken(token, memberId) {
             console.log("Starting email change verification process...");
             
-            // First get the member data to verify the token and get email details
-            database.ref('familyMembers').orderByChild('verificationToken').equalTo(token).once('value')
+            // First check the emailChangeVerifications node
+            database.ref('emailChangeVerifications/' + memberId).once('value')
                 .then(snapshot => {
-                    if (!snapshot.exists()) {
+                    const verificationData = snapshot.val();
+                    
+                    if (!verificationData) {
                         throw new Error('Invalid verification token');
                     }
                     
-                    // Find the member with matching token
-                    let memberData = null;
-                    let userId = null;
-                    
-                    snapshot.forEach(childSnapshot => {
-                        const data = childSnapshot.val();
-                        if (data.verificationToken === token && childSnapshot.key === memberId) {
-                            memberData = data;
-                            userId = childSnapshot.ref.parent.key; // Get the user ID (parent key)
-                        }
-                    });
-                    
-                    if (!memberData) {
+                    if (verificationData.token !== token) {
                         throw new Error('Invalid verification token');
                     }
                     
                     // Show email details
-                    document.getElementById('old-email-text').textContent = memberData.previousEmail || 'Unknown';
-                    document.getElementById('new-email-text').textContent = memberData.email;
+                    document.getElementById('old-email-text').textContent = verificationData.oldEmail;
+                    document.getElementById('new-email-text').textContent = verificationData.newEmail;
                     document.getElementById('email-details').classList.remove('d-none');
                     
                     // Check if already verified
-                    if (memberData.emailVerified && !memberData.emailVerificationPending) {
+                    if (verificationData.verified) {
                         showInfo('Your email change has already been verified.');
                         return null;
                     }
                     
                     // Check if token is expired (24 hours)
                     const now = Date.now();
-                    const tokenAge = now - memberData.verificationSentAt;
+                    const tokenAge = now - verificationData.createdAt;
                     const twentyFourHours = 24 * 60 * 60 * 1000;
                     
                     if (tokenAge > twentyFourHours) {
                         throw new Error('Verification link has expired. Please request a new email change.');
                     }
                     
-                    // Update member record with verified status
-                    return database.ref('familyMembers/' + userId + '/' + memberId).update({
+                    // Update verification record first
+                    return database.ref('emailChangeVerifications/' + memberId).update({
+                        verified: true,
+                        verifiedAt: firebase.database.ServerValue.TIMESTAMP
+                    });
+                })
+                .then(() => {
+                    // Now update the family member record
+                    return database.ref('emailChangeVerifications/' + memberId).once('value');
+                })
+                .then(snapshot => {
+                    const verificationData = snapshot.val();
+                    
+                    // Update the family member's email verification status
+                    return database.ref('familyMembers/' + verificationData.userId + '/' + memberId).update({
                         emailVerified: true,
                         emailVerificationPending: false,
-                        previousEmail: null, // Clear previous email
-                        verificationToken: null, // Clear verification token
-                        verificationSentAt: null // Clear verification timestamp
+                        verificationToken: null // Clear verification token
                     });
                 })
                 .then(() => {
