@@ -1281,9 +1281,16 @@ testAllPasswordCases();
     if (editMemberModal) {
         editMemberModal.addEventListener('hidden.bs.modal', function() {
             document.getElementById('edit-member-form').reset();
-            document.getElementById('edit-member-name').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('edit-member-email').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('edit-member-role').classList.remove('is-invalid', 'is-valid');
+            
+            // Clear all validation states
+            const inputs = document.querySelectorAll('#edit-member-form input, #edit-member-form select');
+            inputs.forEach(input => {
+                input.classList.remove('is-invalid', 'is-valid');
+                const feedbackElement = input.nextElementSibling;
+                if (feedbackElement && feedbackElement.classList.contains('invalid-feedback')) {
+                    feedbackElement.textContent = '';
+                }
+            });
             
             // Remove the data-id attribute
             document.querySelector('#edit-member-form').removeAttribute('data-id');
@@ -1503,14 +1510,15 @@ function handleUpdateMember() {
     const email = document.getElementById('edit-member-email').value;
     const role = document.getElementById('edit-member-role').value;
     
-    // Get selected access permissions
-    const accessElements = document.querySelectorAll('input[name="edit-member-access"]:checked');
-    const access = Array.from(accessElements).map(el => el.value);
-    
-    console.log("Update form values:", {memberId, fullName, email, role, access});
+    console.log("Update form values:", {memberId, fullName, email, role});
     
     // Validate inputs
     let isValid = true;
+    
+    // Reset validation states first
+    document.getElementById('edit-member-name').classList.remove('is-invalid');
+    document.getElementById('edit-member-email').classList.remove('is-invalid');
+    document.getElementById('edit-member-role').classList.remove('is-invalid');
     
     if (!fullName) {
         showToast('Error', 'Please enter a full name', 'error');
@@ -1537,6 +1545,10 @@ function handleUpdateMember() {
     const originalText = updateMemberBtn.innerHTML;
     updateMemberBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Updating...';
     updateMemberBtn.disabled = true;
+    
+    // Get selected access permissions
+    const accessElements = document.querySelectorAll('input[name="edit-member-access"]:checked');
+    const access = Array.from(accessElements).map(el => el.value);
     
     // Prepare member data
     const memberData = {
