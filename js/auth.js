@@ -73,41 +73,56 @@ function handleLogin(e) {
         .then((userCredential) => {
             const user = userCredential.user;
             
-            // Check if email is verified
-            if (!user.emailVerified) {
-                // Send verification email if not verified
-                return user.sendEmailVerification()
+            // Reload user to get latest verification status
+            return user.reload().then(() => {
+                // Check if email is verified
+                if (!user.emailVerified) {
+                    // Show verification notice
+                    document.getElementById('verification-notice').style.display = 'block';
+                    
+                    showToast(
+                        'Verification Required',
+                        'Please verify your email before logging in.',
+                        'warning',
+                        6000
+                    );
+                    throw new Error('Email not verified');
+                }
+                
+                // Update database with verification status
+                return database.ref('users/' + user.uid + '/emailVerified').set(true)
                     .then(() => {
                         showToast(
-                            'Verification Required',
-                            'Please verify your email first. We\'ve sent a new verification email.',
-                            'warning',
-                            8000
+                            'Login Successful',
+                            'Welcome back to Lumiverse!',
+                            'success'
                         );
-                        throw new Error('Email not verified');
+                        setTimeout(() => {
+                            window.location.href = 'dashboard.html';
+                        }, 1500);
                     });
-            }
-            
-            // Update database with verification status
-            return database.ref('users/' + user.uid + '/emailVerified').set(true)
-                .then(() => {
-                    showToast(
-                        'Login Successful',
-                        'Welcome back to Lumiverse!',
-                        'success'
-                    );
-                    setTimeout(() => {
-                        window.location.href = 'dashboard.html';
-                    }, 1500);
-                });
+            });
         })
         .catch((error) => {
+            console.error("Login error:", error);
+            
+            if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+                showToast(
+                    'Login Failed',
+                    'Invalid email or password',
+                    'error'
+                );
+            } else if (error.message === 'Email not verified') {
+                // Don't show error toast for unverified email (already handled)
+            } else {
+                showToast(
+                    'Login Failed',
+                    error.message,
+                    'error'
+                );
+            }
+            
             auth.signOut();
-            showToast(
-                'Login Failed',
-                error.message,
-                'error'
-            );
         })
         .finally(() => {
             btn.disabled = false;
@@ -184,24 +199,28 @@ function checkAuthState() {
         if (user) {
             console.log("Auth state changed - User detected:", user.uid);
             
-            // Check if user is on login/signup page
-            if (window.location.pathname.includes('login.html') || 
-                window.location.pathname.includes('signup.html')) {
+            // Check email verification status on every auth state change
+            user.reload().then(() => {
+                // If user is on login/signup page and email is verified, redirect to dashboard
+                if ((window.location.pathname.includes('login.html') || 
+                     window.location.pathname.includes('signup.html')) &&
+                    user.emailVerified) {
+                    
+                    showToast(
+                        'Email Verified',
+                        'Your email has been verified! Redirecting...',
+                        'success'
+                    );
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 2000);
+                }
                 
-                // Check email verification status
-                user.reload().then(() => {
-                    if (user.emailVerified) {
-                        showToast(
-                            'Session Restored',
-                            'Welcome back! Redirecting to dashboard...',
-                            'success'
-                        );
-                        setTimeout(() => {
-                            window.location.href = 'dashboard.html';
-                        }, 1500);
-                    }
-                });
-            }
+                // If user is on verification page, check status
+                if (window.location.pathname.includes('verify-email')) {
+                    checkEmailVerification();
+                }
+            });
         } else {
             // User is signed out
             if (window.location.pathname.includes('dashboard.html')) {
@@ -215,6 +234,99 @@ function checkAuthState() {
         }
     });
 }
+
+// Handle resend verification email
+function handleResendVerification() {
+    const user = auth.currentUser;
+    
+    if (!user) {
+        showToast('Error', 'No user found. Please log in first.', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const resendBtn = document.getElementById('resend-verification');
+    const originalText = resendBtn.innerHTML;
+    resendBtn.disabled = true;
+    resendBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+    
+    user.sendEmailVerification()
+        .then(() => {
+            showToast(
+                'Verification Sent',
+                'A new verification email has been sent to ' + user.email,
+                'success',
+                6000
+            );
+            
+            // Disable button for 60 seconds to prevent spam
+            let countdown = 60;
+            const interval = setInterval(() => {
+                resendBtn.innerHTML = `Resend in ${countdown}s`;
+                countdown--;
+                
+                if (countdown <= 0) {
+                    clearInterval(interval);
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = originalText;
+                }
+            }, 1000);
+        })
+        .catch((error) => {
+            console.error("Resend verification error:", error);
+            showToast(
+                'Error',
+                'Failed to send verification email: ' + error.message,
+                'error'
+            );
+            resendBtn.disabled = false;
+            resendBtn.innerHTML = originalText;
+        });
+}
+
+// Check email verification status and redirect
+function checkEmailVerification() {
+    const user = auth.currentUser;
+    
+    if (user) {
+        user.reload().then(() => {
+            if (user.emailVerified) {
+                showToast(
+                    'Email Verified',
+                    'Your email has been verified successfully!',
+                    'success'
+                );
+                
+                // Update database
+                database.ref('users/' + user.uid + '/emailVerified').set(true)
+                    .then(() => {
+                        // Redirect to login after 2 seconds
+                        setTimeout(() => {
+                            window.location.href = 'login.html';
+                        }, 2000);
+                    });
+            }
+        });
+    }
+}
+
+// Add password toggle functionality
+function setupPasswordToggle() {
+    const toggleBtn = document.getElementById('toggle-password');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', function() {
+            const passwordInput = document.getElementById('signup-password');
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            
+            // Toggle eye icon
+            const icon = this.querySelector('i');
+            icon.classList.toggle('fa-eye');
+            icon.classList.toggle('fa-eye-slash');
+        });
+    }
+}
+
 
 // Add this to your login page JavaScript
 document.getElementById('resend-verification')?.addEventListener('click', () => {
@@ -288,12 +400,20 @@ function showToast(title, message, type = 'info', duration = 5000) {
 
 // Initialize auth listeners
 document.addEventListener('DOMContentLoaded', function() {
+
+    setupPasswordToggle();
+    
     // Login page
     if (document.getElementById('login-form')) {
         const loginForm = document.getElementById('login-form');
         const emailInput = document.getElementById('login-email');
+        const resendBtn = document.getElementById('resend-verification');
         
         loginForm.addEventListener('submit', handleLogin);
+        
+        if (resendBtn) {
+            resendBtn.addEventListener('click', handleResendVerification);
+        }
         
         emailInput.addEventListener('input', function() {
             if (validateEmail(this.value)) {
@@ -337,6 +457,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Check for email verification redirect
+    if (window.location.search.includes('mode=verifyEmail')) {
+        checkEmailVerification();
+    }
+    
     // Check auth state on all pages
     checkAuthState();
 });
+

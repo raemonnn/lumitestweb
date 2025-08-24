@@ -823,6 +823,40 @@
     text-align: center;
 }
 
+/* Add to your existing CSS */
+.password-input-group {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+    z-index: 10;
+}
+
+.password-toggle:hover {
+    color: #495057;
+}
+
+.modal-content.glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 576px) {
+    .password-toggle {
+        right: 15px;
+    }
+}
+
 .top-nav {
     background: var(--dark);
     padding: 15px 20px;
@@ -1360,6 +1394,67 @@
 .uploaded-file-item:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* Add these styles to your existing CSS */
+.verification-notice {
+    animation: fadeIn 0.5s ease-in;
+    background: rgba(255, 193, 7, 0.1) !important;
+    border: 1px solid rgba(255, 193, 7, 0.3) !important;
+}
+
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(-10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+.password-strength {
+    height: 4px;
+    margin-top: 5px;
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.strength-0 { width: 25%; background-color: #dc3545; }
+.strength-1 { width: 50%; background-color: #dc3545; }
+.strength-2 { width: 75%; background-color: #ffc107; }
+.strength-3 { width: 100%; background-color: #28a745; }
+.strength-4 { width: 100%; background-color: #28a745; }
+
+.password-requirements {
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 0 0;
+    font-size: 0.8rem;
+}
+
+.password-requirements li {
+    margin: 2px 0;
+}
+
+.password-input-group {
+    position: relative;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #6c757d;
+    cursor: pointer;
+}
+
+.password-toggle:hover {
+    color: #495057;
 }
 
 /* Responsive adjustments for file items */

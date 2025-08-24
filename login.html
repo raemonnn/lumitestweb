@@ -45,7 +45,13 @@
                 </div>
                 <div class="form-group">
                     <label for="login-password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="login-password" required>
+                    <div class="password-input-group">
+                        <input type="password" class="form-control" id="login-password" required>
+                        <button type="button" class="password-toggle" id="toggle-login-password">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
+                    <div class="invalid-feedback" id="password-error"></div>
                 </div>
                 <div class="form-group form-check">
                     <input type="checkbox" class="form-check-input" id="remember-me">
@@ -55,10 +61,47 @@
                     <i class="fas fa-sign-in-alt me-2"></i>Login
                 </button>
                 <div class="text-center mt-3">
-                    <a href="#" id="resend-verification">Resend verification email</a></br></br>
+                    <a href="#" id="forgot-password" class="text-secondary">Forgot password?</a><br>
+                    <a href="#" id="resend-verification">Resend verification email</a><br><br>
                     <a href="signup.html" class="text-secondary">Don't have an account? Sign up</a>
                 </div>
             </form>
+            
+            <!-- Add Verification Notice -->
+            <div class="verification-notice mt-3 p-3 bg-warning bg-opacity-10 border border-warning rounded" id="verification-notice" style="display: none;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                    <div class="flex-grow-1">
+                        <small class="text-warning">Email not verified. Please check your inbox.</small>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-warning" id="resend-verification-btn">
+                        <i class="fas fa-paper-plane me-1"></i> Resend
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Add Password Reset Modal -->
+            <div class="modal fade" id="passwordResetModal" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content glass-card">
+                        <div class="modal-header">
+                            <h5 class="modal-title"><i class="fas fa-key me-2"></i>Reset Password</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p>Enter your email address and we'll send you a password reset link.</p>
+                            <div class="form-group">
+                                <label for="reset-email" class="form-label">Email Address</label>
+                                <input type="email" class="form-control" id="reset-email" required>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="send-reset-email">Send Reset Link</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -73,5 +116,138 @@
     <!-- App Scripts -->
     <script src="js/firebase-config.js"></script>
     <script src="js/auth.js"></script>
+    
+    <!-- Add Login-specific JavaScript -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Password toggle functionality
+        const togglePassword = document.getElementById('toggle-login-password');
+        if (togglePassword) {
+            togglePassword.addEventListener('click', function() {
+                const passwordInput = document.getElementById('login-password');
+                const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                passwordInput.setAttribute('type', type);
+                
+                const icon = this.querySelector('i');
+                icon.classList.toggle('fa-eye');
+                icon.classList.toggle('fa-eye-slash');
+            });
+        }
+        
+        // Forgot password functionality
+        const forgotPasswordLink = document.getElementById('forgot-password');
+        if (forgotPasswordLink) {
+            forgotPasswordLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                const modal = new bootstrap.Modal(document.getElementById('passwordResetModal'));
+                modal.show();
+            });
+        }
+        
+        // Send reset email
+        const sendResetBtn = document.getElementById('send-reset-email');
+        if (sendResetBtn) {
+            sendResetBtn.addEventListener('click', function() {
+                const email = document.getElementById('reset-email').value;
+                
+                if (!email || !validateEmail(email)) {
+                    showToast('Error', 'Please enter a valid email address', 'error');
+                    return;
+                }
+                
+                // Show loading state
+                const originalText = sendResetBtn.innerHTML;
+                sendResetBtn.disabled = true;
+                sendResetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Sending...';
+                
+                auth.sendPasswordResetEmail(email)
+                    .then(() => {
+                        showToast(
+                            'Reset Email Sent',
+                            'Password reset instructions have been sent to your email',
+                            'success'
+                        );
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('passwordResetModal'));
+                        modal.hide();
+                    })
+                    .catch((error) => {
+                        showToast(
+                            'Error',
+                            'Failed to send reset email: ' + error.message,
+                            'error'
+                        );
+                    })
+                    .finally(() => {
+                        sendResetBtn.disabled = false;
+                        sendResetBtn.innerHTML = originalText;
+                    });
+            });
+        }
+        
+        // Resend verification button
+        const resendVerificationBtn = document.getElementById('resend-verification-btn');
+        if (resendVerificationBtn) {
+            resendVerificationBtn.addEventListener('click', handleResendVerification);
+        }
+        
+        // Resend verification link
+        const resendVerificationLink = document.getElementById('resend-verification');
+        if (resendVerificationLink) {
+            resendVerificationLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                const email = document.getElementById('login-email').value;
+                
+                if (!email) {
+                    showToast('Error', 'Please enter your email first', 'error');
+                    return;
+                }
+                
+                // Try to find user by email and resend verification
+                auth.fetchSignInMethodsForEmail(email)
+                    .then((signInMethods) => {
+                        if (signInMethods.length > 0) {
+                            // User exists, try to resend verification
+                            handleResendVerification();
+                        } else {
+                            showToast('Error', 'No account found with this email', 'error');
+                        }
+                    })
+                    .catch((error) => {
+                        showToast('Error', 'Failed to check email: ' + error.message, 'error');
+                    });
+            });
+        }
+        
+        // Enhanced email validation
+        const emailInput = document.getElementById('login-email');
+        if (emailInput) {
+            emailInput.addEventListener('blur', function() {
+                if (this.value && !validateEmail(this.value)) {
+                    this.classList.add('is-invalid');
+                } else {
+                    this.classList.remove('is-invalid');
+                }
+            });
+        }
+        
+        // Password validation
+        const passwordInput = document.getElementById('login-password');
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                const errorDiv = document.getElementById('password-error');
+                if (this.value.length === 0) {
+                    errorDiv.textContent = '';
+                    this.classList.remove('is-invalid');
+                } else if (this.value.length < 6) {
+                    errorDiv.textContent = 'Password must be at least 6 characters';
+                    this.classList.add('is-invalid');
+                } else {
+                    errorDiv.textContent = '';
+                    this.classList.remove('is-invalid');
+                }
+            });
+        }
+    });
+    </script>
 </body>
 </html>
