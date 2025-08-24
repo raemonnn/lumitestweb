@@ -3,6 +3,8 @@ const EMAILJS_PUBLIC_KEY = 'BVrGFgKc_hTr1RAuP';
 const EMAILJS_SERVICE_ID = 'service_ceu00nu';
 const EMAILJS_TEMPLATE_ID = 'template_db0luo8';
 
+const EMAILJS_TEMPLATE_EMAIL_CHANGE_ID = 'template_h3l9zgq';
+
 // Add your AccuWeather API key here
 const ACCUWEATHER_API_KEY = 'CF1pRBTbcQz9liDORwAW694Xlk38Z9PK';
 
@@ -747,16 +749,23 @@ function createMemberElement(member) {
     // Get initials for avatar
     const initials = member.fullName.split(' ').map(name => name[0]).join('').toUpperCase();
     
+    // Add email verification status badge
+    const emailStatus = member.emailVerified ? 
+        '<span class="badge bg-success">Email Verified</span>' : 
+        '<span class="badge bg-warning">Email Pending</span>';
+    
     memberElement.innerHTML = `
         <div class="member-avatar">${initials.substring(0, 2)}</div>
         <div class="member-info">
             <div class="member-name">${member.fullName}</div>
+            <div class="member-email">${member.email}</div>
             <div class="member-role">${member.role}</div>
             <div class="member-status">
                 ${member.verified ? 
                     '<span class="badge bg-success">Verified</span>' : 
                     '<span class="badge bg-warning">Pending</span>'
                 }
+                ${emailStatus}
             </div>
         </div>
         <div class="member-actions">
@@ -1510,7 +1519,11 @@ function handleUpdateMember() {
     const email = document.getElementById('edit-member-email').value;
     const role = document.getElementById('edit-member-role').value;
     
-    console.log("Update form values:", {memberId, fullName, email, role});
+    // Get the original member data to check if email changed
+    const originalMember = familyMembers.find(m => m.id === memberId);
+    const emailChanged = originalMember && originalMember.email !== email;
+    
+    console.log("Update form values:", {memberId, fullName, email, role, emailChanged});
     
     // Validate inputs
     let isValid = true;
@@ -1559,6 +1572,15 @@ function handleUpdateMember() {
         updatedAt: firebase.database.ServerValue.TIMESTAMP
     };
     
+    // If email changed, add verification status
+    if (emailChanged) {
+        memberData.emailVerified = false;
+        memberData.emailVerificationPending = true;
+        memberData.previousEmail = originalMember.email;
+        memberData.verificationToken = generateVerificationToken();
+        memberData.verificationSentAt = firebase.database.ServerValue.TIMESTAMP;
+    }
+    
     // Convert array to object for Firebase compatibility
     if (Array.isArray(memberData.access)) {
         const accessObj = {};
@@ -1573,13 +1595,38 @@ function handleUpdateMember() {
         .then(() => {
             console.log("Member updated successfully");
             
+            // If email changed, send verification email
+            if (emailChanged) {
+                return sendEmailChangeVerification(originalMember, email, memberData.verificationToken, memberId)
+                    .then(() => {
+                        // Also notify the head of family about the email change
+                        createNotification(
+                            'Email Change Requested',
+                            `${fullName} has requested to change their email from ${originalMember.email} to ${email}. 
+                            Verification email sent to new address.`,
+                            { 
+                                type: 'email_change_request',
+                                memberId: memberId,
+                                memberName: fullName,
+                                oldEmail: originalMember.email,
+                                newEmail: email
+                            }
+                        );
+                    });
+            }
+        })
+        .then(() => {
             // Success
             const modal = bootstrap.Modal.getInstance(document.getElementById('editMemberModal'));
             if (modal) {
                 modal.hide();
             }
             
-            showToast('Success', 'Family member updated successfully', 'success');
+            if (emailChanged) {
+                showToast('Success', 'Family member updated. Verification email sent to new address.', 'success');
+            } else {
+                showToast('Success', 'Family member updated successfully', 'success');
+            }
         })
         .catch(error => {
             console.error("Update member error:", error);
@@ -1589,6 +1636,53 @@ function handleUpdateMember() {
             // Restore button state
             updateMemberBtn.innerHTML = originalText;
             updateMemberBtn.disabled = false;
+        });
+}
+
+
+
+// Function to send email change verification
+function sendEmailChangeVerification(member, newEmail, verificationToken, memberId) {
+    console.log("Sending email change verification to:", newEmail);
+    
+    // Check if EmailJS is loaded
+    if (typeof emailjs === 'undefined') {
+        console.error('EmailJS is not loaded!');
+        showToast('Error', 'Email service not available', 'error');
+        return Promise.reject(new Error('EmailJS not loaded'));
+    }
+    
+    // Get head of family's name
+    const headOfFamilyName = document.querySelector('.user-fullname').textContent;
+    
+    // Prepare template parameters
+    const templateParams = {
+    to_email: newEmail,
+    to_name: member.fullName,
+    from_name: headOfFamilyName,
+    FamilyMemberName: member.fullName,
+    InviterName: headOfFamilyName,
+    old_email: member.email,
+    new_email: newEmail,
+    request_date: new Date().toLocaleDateString(),
+    verification_link: `${BASE_URL}/verify-email-change.html?token=${verificationToken}&member=${memberId}`
+};
+
+    console.log("Sending email change verification with params:", templateParams);
+
+    // Send email using EmailJS
+    return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_EMAIL_CHANGE_ID, templateParams, EMAILJS_PUBLIC_KEY)
+        .then((response) => {
+            console.log('Email change verification sent successfully:', response);
+            showToast('Verification Sent', `A verification email has been sent to ${newEmail}`, 'success');
+            return Promise.resolve();
+        })
+        .catch((error) => {
+            console.error('Failed to send email change verification:', error);
+            let errorMessage = 'Failed to send verification email';
+            if (error.text) errorMessage += ': ' + error.text;
+            showToast('Error', errorMessage, 'error');
+            throw error;
         });
 }
 
