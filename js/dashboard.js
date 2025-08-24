@@ -742,6 +742,7 @@ function loadFamilyMembers() {
 }
 
 // Create member element
+// Create member element - FIXED to show only one status
 function createMemberElement(member) {
     const memberElement = document.createElement('div');
     memberElement.className = 'family-member';
@@ -749,10 +750,22 @@ function createMemberElement(member) {
     // Get initials for avatar
     const initials = member.fullName.split(' ').map(name => name[0]).join('').toUpperCase();
     
-    // Add email verification status badge
-    const emailStatus = member.emailVerified ? 
-        '<span class="badge bg-success">Email Verified</span>' : 
-        '<span class="badge bg-warning">Email Pending</span>';
+    // Determine which status to show - prioritize email verification status
+    let statusBadge = '';
+    
+    if (member.emailVerificationPending) {
+        // Email change pending verification
+        statusBadge = '<span class="badge bg-warning">Email Change Pending</span>';
+    } else if (!member.emailVerified) {
+        // Email not verified yet
+        statusBadge = '<span class="badge bg-warning">Email Pending</span>';
+    } else if (!member.verified) {
+        // Member not verified (general status)
+        statusBadge = '<span class="badge bg-warning">Pending</span>';
+    } else {
+        // Everything verified
+        statusBadge = '<span class="badge bg-success">Verified</span>';
+    }
     
     memberElement.innerHTML = `
         <div class="member-avatar">${initials.substring(0, 2)}</div>
@@ -761,11 +774,7 @@ function createMemberElement(member) {
             <div class="member-email">${member.email}</div>
             <div class="member-role">${member.role}</div>
             <div class="member-status">
-                ${member.verified ? 
-                    '<span class="badge bg-success">Verified</span>' : 
-                    '<span class="badge bg-warning">Pending</span>'
-                }
-                ${emailStatus}
+                ${statusBadge}
             </div>
         </div>
         <div class="member-actions">
