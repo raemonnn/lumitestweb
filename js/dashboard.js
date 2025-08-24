@@ -1653,8 +1653,8 @@ function handleUpdateMember() {
 
 
 // Function to send email change verification
-function sendEmailChangeVerification(member, newEmail, verificationToken, memberId) {
-    console.log("Sending email change verification to:", newEmail);
+function sendInvitationEmail(email, name, memberId, password = null) {
+    console.log("Sending invitation to:", email);
     
     // Check if EmailJS is loaded
     if (typeof emailjs === 'undefined') {
@@ -1663,53 +1663,67 @@ function sendEmailChangeVerification(member, newEmail, verificationToken, member
         return Promise.reject(new Error('EmailJS not loaded'));
     }
     
-    // Get head of family's name
-    const headOfFamilyName = document.querySelector('.user-fullname').textContent;
-
-    // Store verification data in the publicly accessible location
-    const verificationData = {
-        token: verificationToken,
-        oldEmail: member.email,
-        newEmail: newEmail,
-        userId: currentUser.uid, // The head of family's UID
-        createdAt: Date.now(),
-        verified: false
-    };
+    // Validate email address
+    if (!email || !validateEmail(email)) {
+        console.error('Invalid email address:', email);
+        showToast('Error', 'Invalid email address provided', 'error');
+        return Promise.reject(new Error('Invalid email address'));
+    }
     
-    // Prepare template parameters
-    const templateParams = {
-    to_email: newEmail,
-    to_name: member.fullName,
-    from_name: headOfFamilyName,
-    FamilyMemberName: member.fullName,
-    InviterName: headOfFamilyName,
-    old_email: member.email,
-    new_email: newEmail,
-    request_date: new Date().toLocaleDateString(),
-    verification_link: `${BASE_URL}/verify-email-change.html?token=${verificationToken}&member=${memberId}`
-};
+    // Generate a verification token first
+    const verificationToken = generateVerificationToken();
+    
+    // Store the verification token in the database
+    return database.ref('emailVerifications/' + memberId).set({
+        token: verificationToken,
+        email: email,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        verified: false,
+        userId: currentUser.uid,
+        password: password
+    }).then(() => {
+        // Get inviter's name
+        const inviterName = document.querySelector('.user-fullname').textContent;
+        const inviterInitials = inviterName.split(' ').map(n => n[0]).join('').toUpperCase();
+        
+        // CORRECTED: Proper EmailJS template parameters
+        const templateParams = {
+            to_email: email, // MUST be exactly 'to_email' for recipient
+            to_name: name,   // Optional but recommended
+            from_name: inviterName,
+            FamilyMemberName: name,
+            InviterName: inviterName,
+            InviterInitials: inviterInitials,
+            VerificationLink: `${BASE_URL}/verify-email.html?token=${verificationToken}&member=${memberId}`,
+            temporary_password: password || 'Please contact admin for password'
+        };
 
-    console.log("Sending email change verification with params:", templateParams);
+        console.log("Sending email with params:", templateParams);
 
-    // Send email using EmailJS
-    return database.ref('emailChangeVerifications/' + memberId).set(verificationData)
-            .then(() => {
-                // Then send the email
-                return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_EMAIL_CHANGE_ID, templateParams, EMAILJS_PUBLIC_KEY);
-            })
+        // Send email using EmailJS
+        return emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams, EMAILJS_PUBLIC_KEY)
             .then((response) => {
-                console.log('Email change verification sent successfully:', response);
-                showToast('Verification Sent', `A verification email has been sent to ${newEmail}`, 'success');
+                console.log('Email sent successfully:', response);
+                showToast('Invitation Sent', `An invitation has been sent to ${email}`, 'success');
                 return Promise.resolve();
             })
             .catch((error) => {
-                console.error('Failed to send email change verification:', error);
-                let errorMessage = 'Failed to send verification email';
-                if (error.text) errorMessage += ': ' + error.text;
+                console.error('Failed to send email - full error:', error);
+                console.error('Error status:', error.status);
+                console.error('Error text:', error.text);
+                
+                let errorMessage = 'Failed to send invitation email';
+                if (error.text) {
+                    errorMessage += ': ' + error.text;
+                } else if (error.message) {
+                    errorMessage += ': ' + error.message;
+                }
+                
                 showToast('Error', errorMessage, 'error');
                 throw error;
             });
-    }
+    });
+}
 
 // Edit member handler
 function handleEditMember(e) {
