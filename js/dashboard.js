@@ -3,6 +3,9 @@ const EMAILJS_PUBLIC_KEY = 'BVrGFgKc_hTr1RAuP';
 const EMAILJS_SERVICE_ID = 'service_ceu00nu';
 const EMAILJS_TEMPLATE_ID = 'template_db0luo8';
 
+// Add your AccuWeather API key here
+const ACCUWEATHER_API_KEY = 'CF1pRBTbcQz9liDORwAW694Xlk38Z9PK';
+
 const IS_PRODUCTION = window.location.hostname.includes('github.io');
 const BASE_URL = IS_PRODUCTION ? 
     'https://raemonnn.github.io/lumitestweb' : 
@@ -33,7 +36,7 @@ function initDashboard() {
             
             loadUserData();
             loadFamilyMembers();
-            loadWeather();
+            setupWeatherLocation(); // Changed from loadWeather()
             updateDateTime();
             debugTour();
             debugNotifications();
@@ -140,6 +143,530 @@ function resetTourForNewUser() {
         });
 }
 
+// Add this function to handle emergency contact updates
+function handleEmergencyContactUpdate() {
+    const policeContact = document.querySelector('#police-contact').value;
+    const fireContact = document.querySelector('#fire-contact').value;
+    const ambulanceContact = document.querySelector('#ambulance-contact').value;
+
+    // Validate inputs
+    if (!policeContact && !fireContact && !ambulanceContact) {
+        showToast('Error', 'Please add at least one emergency contact', 'error');
+        return;
+    }
+
+    // Show loading state
+    const saveBtn = document.querySelector('#save-emergency-btn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    saveBtn.disabled = true;
+
+    // Prepare emergency data - matches your Firebase structure
+    const emergencyData = {
+        police: policeContact || '',
+        fire: fireContact || '',
+        ambulance: ambulanceContact || '',
+        updatedAt: firebase.database.ServerValue.TIMESTAMP,
+        updatedBy: currentUser.uid
+    };
+
+    // Save to database - this matches your existing structure
+    database.ref('emergencyContacts/' + currentUser.uid).set(emergencyData)
+        .then(() => {
+            showToast('Success', 'Emergency contacts updated successfully', 'success');
+            
+            // Update dashboard with emergency numbers
+            updateDashboardEmergencyNumbers(emergencyData);
+            
+            // Create notification
+            createNotification(
+                'Emergency Contacts Updated',
+                'Your emergency contacts have been successfully updated.'
+            );
+        })
+        .catch(error => {
+            console.error("Error updating emergency contacts:", error);
+            showToast('Error', 'Failed to update emergency contacts: ' + error.message, 'error');
+        })
+        .finally(() => {
+            // Restore button state
+            saveBtn.innerHTML = originalText;
+            saveBtn.disabled = false;
+        });
+}
+
+// Update dashboard with emergency numbers
+function updateDashboardEmergencyNumbers(emergencyData) {
+    const emergencyNumbersContainer = document.querySelector('.emergency-numbers');
+    
+    if (!emergencyNumbersContainer) return;
+    
+    let html = '';
+    
+    if (emergencyData.police) {
+        html += `
+            <div class="emergency-number-item">
+                <div class="emergency-icon police">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <div class="emergency-info">
+                    <div class="emergency-type">Police</div>
+                    <div class="emergency-number">${emergencyData.police}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (emergencyData.fire) {
+        html += `
+            <div class="emergency-number-item">
+                <div class="emergency-icon fire">
+                    <i class="fas fa-fire-extinguisher"></i>
+                </div>
+                <div class="emergency-info">
+                    <div class="emergency-type">Fire Department</div>
+                    <div class="emergency-number">${emergencyData.fire}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    if (emergencyData.ambulance) {
+        html += `
+            <div class="emergency-number-item">
+                <div class="emergency-icon ambulance">
+                    <i class="fas fa-ambulance"></i>
+                </div>
+                <div class="emergency-info">
+                    <div class="emergency-type">Ambulance</div>
+                    <div class="emergency-number">${emergencyData.ambulance}</div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Show note if it exists
+    if (emergencyData.note) {
+        html += `
+            <div class="emergency-note mt-3 p-2 bg-dark border border-secondary rounded">
+                <small class="text-muted"><strong>Note:</strong> ${emergencyData.note}</small>
+            </div>
+        `;
+    }
+    
+    if (html === '') {
+        html = '<p class="text-muted">No emergency numbers added yet</p>';
+    }
+    
+    emergencyNumbersContainer.innerHTML = html;
+}
+
+// Load emergency contacts
+function loadEmergencyContacts() {
+    database.ref('emergencyContacts/' + currentUser.uid).once('value')
+        .then((snapshot) => {
+            if (snapshot.exists()) {
+                const contacts = snapshot.val();
+                
+                // Set form values (handle missing fields gracefully)
+                document.querySelector('#police-contact').value = contacts.police || '';
+                document.querySelector('#fire-contact').value = contacts.fire || '';
+                document.querySelector('#ambulance-contact').value = contacts.ambulance || '';
+                
+                // Update dashboard with emergency numbers - THIS WAS MISSING
+                updateDashboardEmergencyNumbers(contacts);
+            }
+        })
+        .catch(error => {
+            console.error("Error loading emergency contacts:", error);
+        });
+}
+
+// Weather location functions
+function setupWeatherLocation() {
+    // Check if user has already made a location decision
+    const locationDecision = localStorage.getItem('weatherLocationDecision');
+    
+    if (!locationDecision) {
+        // Show location permission modal
+        showLocationPermissionModal();
+    } else if (locationDecision === 'granted') {
+        // User previously granted permission, get their location
+        getCurrentLocation();
+    } else {
+        // User previously denied permission, use default location
+        loadWeatherWithLocation('Manila', 14.5995, 120.9842); // Manila coordinates
+    }
+}
+
+function showLocationPermissionModal() {
+    const modalHTML = `
+        <div class="modal fade" id="locationModal" tabindex="-1" aria-labelledby="locationModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content bg-dark text-light">
+                    <div class="modal-header border-secondary">
+                        <h5 class="modal-title" id="locationModalLabel">
+                            <i class="fas fa-location-dot me-2"></i>Weather Location Access
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>To provide accurate weather information, we need access to your location.</p>
+                        <p>You can also search for weather in any location if you prefer not to share your location.</p>
+                    </div>
+                    <div class="modal-footer border-secondary">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="deny-location">
+                            Deny Access
+                        </button>
+                        <button type="button" class="btn btn-primary" id="allow-location">
+                            Allow Access
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Add modal to DOM if it doesn't exist
+    if (!document.getElementById('locationModal')) {
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        // Add event listeners
+        document.getElementById('allow-location').addEventListener('click', function() {
+            localStorage.setItem('weatherLocationDecision', 'granted');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('locationModal'));
+            modal.hide();
+            getCurrentLocation();
+        });
+        
+        document.getElementById('deny-location').addEventListener('click', function() {
+            localStorage.setItem('weatherLocationDecision', 'denied');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('locationModal'));
+            modal.hide();
+            loadWeatherWithLocation('Manila'); // Default location
+        });
+    }
+    
+    // Show the modal
+    const locationModal = new bootstrap.Modal(document.getElementById('locationModal'));
+    locationModal.show();
+}
+
+function getCurrentLocation() {
+    if (!navigator.geolocation) {
+        showToast('Error', 'Geolocation is not supported by your browser', 'error');
+        loadWeatherWithLocation('Manila', 14.5995, 120.9842);
+        return;
+    }
+    
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            
+            // Get location name and weather data from AccuWeather
+            getAccuWeatherLocation(latitude, longitude)
+                .then(locationData => {
+                    const locationName = locationData.LocalizedName;
+                    const locationKey = locationData.Key;
+                    loadWeatherWithLocation(locationName, latitude, longitude, locationKey);
+                })
+                .catch(error => {
+                    console.error("Error getting AccuWeather location:", error);
+                    // Fallback to OpenStreetMap if AccuWeather fails
+                    getLocationName(latitude, longitude)
+                        .then(locationName => {
+                            loadWeatherWithLocation(locationName, latitude, longitude);
+                        })
+                        .catch(error => {
+                            console.error("Error getting location name:", error);
+                            loadWeatherWithLocation(`${latitude},${longitude}`, latitude, longitude);
+                        });
+                });
+        },
+        error => {
+            console.error("Error getting location:", error);
+            showToast('Info', 'Using default location. You can search for any location.', 'info');
+            loadWeatherWithLocation('Manila', 14.5995, 120.9842);
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 60000
+        }
+    );
+}
+
+// Get location data from AccuWeather API
+function getAccuWeatherLocation(latitude, longitude) {
+    return fetch(`https://dataservice.accuweather.com/locations/v1/cities/geoposition/search?apikey=${ACCUWEATHER_API_KEY}&q=${latitude},${longitude}&language=en-us&details=false&toplevel=false`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`AccuWeather API error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.LocalizedName) {
+                return data;
+            }
+            throw new Error('No location data found');
+        });
+}
+
+// Get weather data from AccuWeather API
+function getAccuWeatherData(locationKey) {
+    return fetch(`https://dataservice.accuweather.com/currentconditions/v1/${locationKey}?apikey=${ACCUWEATHER_API_KEY}&details=true`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`AccuWeather API error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.length > 0) {
+                return data[0];
+            }
+            throw new Error('No weather data found');
+        });
+}
+
+
+// Get location name from coordinates (fallback using OpenStreetMap)
+function getLocationName(latitude, longitude) {
+    return fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.display_name) {
+                // Try to get a more readable location name
+                if (data.address) {
+                    if (data.address.city) return data.address.city;
+                    if (data.address.town) return data.address.town;
+                    if (data.address.village) return data.address.village;
+                    if (data.address.municipality) return data.address.municipality;
+                }
+                return data.display_name.split(',')[0]; // Return the first part of the address
+            }
+            return `${latitude},${longitude}`;
+        });
+}
+
+function loadWeatherWithLocation(locationName, latitude = null, longitude = null, locationKey = null) {
+    // Show loading state
+    const weatherWidget = document.querySelector('.weather-widget');
+    if (weatherWidget) {
+        weatherWidget.innerHTML = `
+            <div class="text-center py-2">
+                <div class="spinner-border spinner-border-sm text-light" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-1 small">Loading weather...</div>
+            </div>
+        `;
+    }
+    
+    // Store location data
+    if (latitude && longitude) {
+        if (weatherWidget) {
+            weatherWidget.dataset.lat = latitude;
+            weatherWidget.dataset.lon = longitude;
+            weatherWidget.dataset.locationName = locationName;
+            if (locationKey) {
+                weatherWidget.dataset.locationKey = locationKey;
+            }
+        }
+    }
+    
+    // Get weather data if we have a location key
+    if (locationKey) {
+        getAccuWeatherData(locationKey)
+            .then(weatherData => {
+                updateWeatherWidget(locationName, weatherData);
+            })
+            .catch(error => {
+                console.error("Error getting weather data:", error);
+                // Fallback to static weather display
+                updateWeatherWidget(locationName, null);
+            });
+    } else {
+        // No location key, just show the location name
+        updateWeatherWidget(locationName, null);
+    }
+    
+    // Set up search functionality
+    setupWeatherSearch(locationName);
+}
+
+function updateWeatherWidget(locationName, weatherData) {
+    const weatherWidget = document.querySelector('.weather-widget');
+    if (!weatherWidget) return;
+    
+    if (weatherData) {
+        // We have real weather data from AccuWeather
+        const temperature = weatherData.Temperature.Metric.Value;
+        const weatherText = weatherData.WeatherText;
+        const weatherIcon = getWeatherIcon(weatherData.WeatherIcon);
+        
+        weatherWidget.innerHTML = `
+            <div class="weather-icon">${weatherIcon}</div>
+            <div>
+                <div class="weather-temp">${temperature}°C</div>
+                <div class="weather-details">${weatherText} • ${locationName}</div>
+            </div>
+        `;
+    } else {
+        // No weather data, just show location
+        weatherWidget.innerHTML = `
+            <div class="weather-icon">⛅</div>
+            <div>
+                <div class="weather-temp">--°C</div>
+                <div class="weather-details">${locationName}</div>
+            </div>
+        `;
+    }
+}
+
+// Map AccuWeather icon numbers to emojis
+function getWeatherIcon(iconNumber) {
+    const iconMap = {
+        1: '☀️',  // Sunny
+        2: '🌤️',  // Mostly Sunny
+        3: '🌤️',  // Partly Sunny
+        4: '🌤️',  // Intermittent Clouds
+        5: '🌤️',  // Hazy Sunshine
+        6: '🌥️',  // Mostly Cloudy
+        7: '☁️',  // Cloudy
+        8: '☁️',  // Dreary
+        11: '🌫️', // Fog
+        12: '🌧️', // Showers
+        13: '🌦️', // Mostly Cloudy w/ Showers
+        14: '🌦️', // Partly Sunny w/ Showers
+        15: '⛈️', // T-Storms
+        16: '⛈️', // Mostly Cloudy w/ T-Storms
+        17: '🌦️', // Partly Sunny w/ T-Storms
+        18: '🌧️', // Rain
+        19: '🌨️', // Flurries
+        20: '🌨️', // Mostly Cloudy w/ Flurries
+        21: '🌨️', // Partly Sunny w/ Flurries
+        22: '❄️', // Snow
+        23: '❄️', // Mostly Cloudy w/ Snow
+        24: '🌨️', // Ice
+        25: '🌨️', // Sleet
+        26: '🌨️', // Freezing Rain
+        29: '🌨️', // Rain and Snow
+        30: '🔥', // Hot
+        31: '🥶', // Cold
+        32: '💨', // Windy
+        33: '🌙', // Clear
+        34: '🌙', // Mostly Clear
+        35: '🌙', // Partly Cloudy
+        36: '🌙', // Intermittent Clouds
+        37: '🌫️', // Hazy Moonlight
+        38: '🌙', // Mostly Cloudy
+        39: '🌧️', // Partly Cloudy w/ Showers
+        40: '🌧️', // Mostly Cloudy w/ Showers
+        41: '⛈️', // Partly Cloudy w/ T-Storms
+        42: '⛈️', // Mostly Cloudy w/ T-Storms
+        43: '🌨️', // Mostly Cloudy w/ Flurries
+        44: '🌨️'  // Mostly Cloudy w/ Snow
+    };
+    
+    return iconMap[iconNumber] || '⛅';
+}
+
+function setupWeatherSearch(currentLocation) {
+    const weatherSearchForm = document.querySelector('#weather-search-form');
+    const weatherSearchInput = document.querySelector('#weather-search-input');
+    
+    if (weatherSearchForm && weatherSearchInput) {
+        // Set current location as placeholder
+        weatherSearchInput.placeholder = `e.g., ${currentLocation}`;
+        
+        weatherSearchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const searchQuery = weatherSearchInput.value.trim();
+            if (searchQuery) {
+                searchWeatherLocation(searchQuery);
+            }
+        });
+    }
+}
+
+function searchWeatherLocation(query) {
+    // Show loading state
+    const weatherWidget = document.querySelector('.weather-widget');
+    if (weatherWidget) {
+        weatherWidget.innerHTML = `
+            <div class="text-center py-2">
+                <div class="spinner-border spinner-border-sm text-light" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <div class="mt-1 small">Searching...</div>
+            </div>
+        `;
+    }
+    
+    // Use AccuWeather API for location search
+    fetch(`https://dataservice.accuweather.com/locations/v1/cities/search?apikey=${ACCUWEATHER_API_KEY}&q=${encodeURIComponent(query)}&language=en-us&details=false`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`AccuWeather API error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.length > 0) {
+                const location = data[0];
+                const locationName = location.LocalizedName;
+                const locationKey = location.Key;
+                const latitude = location.GeoPosition.Latitude;
+                const longitude = location.GeoPosition.Longitude;
+                
+                loadWeatherWithLocation(locationName, latitude, longitude, locationKey);
+                showToast('Success', `Weather location updated to ${locationName}`, 'success');
+            } else {
+                showToast('Error', 'Location not found. Please try another search.', 'error');
+                // Reload previous weather
+                const weatherWidget = document.querySelector('.weather-widget');
+                if (weatherWidget.dataset.lat && weatherWidget.dataset.lon) {
+                    const locationName = weatherWidget.dataset.locationName || 'Unknown Location';
+                    const latitude = weatherWidget.dataset.lat;
+                    const longitude = weatherWidget.dataset.lon;
+                    const locationKey = weatherWidget.dataset.locationKey;
+                    
+                    loadWeatherWithLocation(locationName, latitude, longitude, locationKey);
+                } else {
+                    loadWeatherWithLocation('Manila', 14.5995, 120.9842);
+                }
+            }
+        })
+        .catch(error => {
+            console.error("Error searching location:", error);
+            showToast('Error', 'Failed to search location. Please try again.', 'error');
+            
+            // Fallback to OpenStreetMap search
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        const latitude = data[0].lat;
+                        const longitude = data[0].lon;
+                        const locationName = data[0].display_name;
+                        
+                        loadWeatherWithLocation(locationName, latitude, longitude);
+                        showToast('Success', `Weather location updated to ${locationName}`, 'success');
+                    } else {
+                        showToast('Error', 'Location not found. Please try another search.', 'error');
+                    }
+                })
+                .catch(fallbackError => {
+                    console.error("Fallback search also failed:", fallbackError);
+                });
+        });
+}
+
+
 // Load user data from database
 function loadUserData() {
     database.ref('users/' + currentUser.uid).once('value')
@@ -161,6 +688,9 @@ function loadUserData() {
                     avatarElement.textContent = initials.substring(0, 2);
                 }
             }
+            
+            // Load emergency contacts after user data is loaded
+            loadEmergencyContacts();
         })
         .catch(error => {
             console.error("Error loading user data:", error);
@@ -283,12 +813,15 @@ function addFamilyMember(memberData) {
                     createdAt: firebase.database.ServerValue.TIMESTAMP
                 }).then(() => {
                     return { memberId, password: memberData.password };
+                }).catch(error => {
+                    console.error("Error storing password:", error);
+                    throw new Error("Failed to store password: " + error.message);
                 });
             }
             return { memberId };
         })
         .then(({ memberId, password }) => {
-            // Send invitation email - MAKE SURE email parameter is correct
+            // Send invitation email
             return sendInvitationEmail(memberData.email, memberData.fullName, memberId, password)
                 .then(() => {
                     // Update the member record
@@ -300,10 +833,15 @@ function addFamilyMember(memberData) {
                 .catch((emailError) => {
                     console.warn("Email failed but member was added:", emailError);
                     showToast('Warning', 'Member added but email notification failed', 'warning');
+                    // Still return success since member was added to database
                     return Promise.resolve();
                 });
         })
-    }
+        .catch(error => {
+            console.error("Error in addFamilyMember:", error);
+            throw error; // Re-throw the error to be caught by the caller
+        });
+}
 
 // Email invitation function with password information
 function sendInvitationEmail(email, name, memberId, password = null) {
@@ -515,12 +1053,12 @@ function setupEventListeners() {
         });
     }
 
-    // Notification bell click - ADD THIS
+    // Notification bell click
     if (notificationBell) {
         notificationBell.addEventListener('click', showNotificationsModal);
     }
     
-    // Mobile menu toggle
+    // Mobile menu toggle - FIXED: Remove nested event listeners
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', () => {
             console.log("Mobile menu button clicked");
@@ -528,31 +1066,15 @@ function setupEventListeners() {
                 sidebar.classList.toggle('active');
                 console.log("Sidebar toggled");
             }
-
-                // File upload form
-            if (fileUploadForm) {
-                fileUploadForm.addEventListener('submit', handleFileUpload);
-            }
-            
-            // File deletion handler
-            document.addEventListener('click', (e) => {
-                if (e.target.closest('.delete-file')) {
-                    const fileId = e.target.closest('.delete-file').dataset.id;
-                    deleteFile(fileId);
-                }
-            });
-            
-            // Load uploaded files when customization tab is shown
-            const customizationTab = document.querySelector('[href="#customization"]');
-            if (customizationTab) {
-                customizationTab.addEventListener('shown.bs.tab', function() {
-                    loadUploadedFiles();
-                });
-            }
         });
     }
+
+    // File upload form - MOVED OUTSIDE of mobile menu handler
+    if (fileUploadForm) {
+        fileUploadForm.addEventListener('submit', handleFileUpload);
+    }
     
-    // Add member buttons
+    // Add member buttons - CRITICAL: This was the main issue
     document.addEventListener('click', function(e) {
         // Quick action button in dashboard
         if (e.target.closest('.btn-outline-primary') && e.target.closest('.btn-outline-primary').textContent.includes('Add Family Member')) {
@@ -570,7 +1092,7 @@ function setupEventListeners() {
             addMemberModal.show();
         }
         
-        // Save member button
+        // Save member button - FIXED: Use proper selector
         if (e.target.closest('#save-member-btn')) {
             e.preventDefault();
             console.log("Save member button clicked");
@@ -591,7 +1113,6 @@ function setupEventListeners() {
                 modal.hide();
             }
         }
-       
     });
     
     // Email validation
@@ -599,7 +1120,12 @@ function setupEventListeners() {
     if (memberEmailInput) {
         memberEmailInput.addEventListener('blur', function() {
             const isValid = validateEmail(this.value);
-            showValidationFeedback(this, isValid, isValid ? '' : 'Please enter a valid email address');
+            // Use the simpler validation approach from working code
+            if (this.value && !isValid) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
         });
     }
     
@@ -636,11 +1162,40 @@ function setupEventListeners() {
             }
         });
     }
+
+    function testAllPasswordCases() {
+    console.log("=== TESTING ALL PASSWORD CASES ===");
     
-    // File upload form
-    if (fileUploadForm) {
-        fileUploadForm.addEventListener('submit', handleFileUpload);
-    }
+    const testCases = [
+        { password: "", expected: false, description: "Empty password" },
+        { password: "short", expected: false, description: "Too short (5 chars)" },
+        { password: "longenough", expected: false, description: "No number or uppercase" },
+        { password: "123456", expected: false, description: "No uppercase" },
+        { password: "ABCDEF", expected: false, description: "No number" },
+        { password: "abc123", expected: false, description: "No uppercase" },
+        { password: "ABC123", expected: true, description: "Valid password" },
+        { password: "Test123", expected: true, description: "Valid password" },
+        { password: "Password1", expected: true, description: "Valid password" }
+    ];
+    
+    testCases.forEach((testCase, index) => {
+        const result = validatePassword(testCase.password);
+        const passed = result.isValid === testCase.expected;
+        
+        console.log(`Test ${index + 1}: ${testCase.description}`);
+        console.log(`  Password: "${testCase.password}"`);
+        console.log(`  Expected: ${testCase.expected}, Got: ${result.isValid}`);
+        console.log(`  Message: ${result.message}`);
+        console.log(`  Status: ${passed ? "✅ PASS" : "❌ FAIL"}`);
+        if (!passed) {
+            console.log(`  ERROR: Expected ${testCase.expected} but got ${result.isValid}`);
+        }
+        console.log("---");
+    });
+}
+
+// Call this function during initialization
+testAllPasswordCases();
     
     // View all members button
     const viewAllBtn = document.querySelector('.view-all-btn');
@@ -697,10 +1252,27 @@ function setupEventListeners() {
     if (addMemberModal) {
         addMemberModal.addEventListener('hidden.bs.modal', function() {
             document.getElementById('add-member-form').reset();
-            document.getElementById('member-name').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('member-email').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('member-password').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('member-role').classList.remove('is-invalid', 'is-valid');
+            
+            // Clear all validation states using the proper function
+            const inputs = document.querySelectorAll('#add-member-form input, #add-member-form select');
+            inputs.forEach(input => {
+                input.classList.remove('is-invalid', 'is-valid');
+                const feedbackElement = input.nextElementSibling;
+                if (feedbackElement && feedbackElement.classList.contains('invalid-feedback')) {
+                    feedbackElement.textContent = '';
+                }
+            });
+            
+            // Also clear the validation info if it exists
+            const validationInfo = document.querySelector('.password-validation-info');
+            if (validationInfo) {
+                validationInfo.querySelector('.length-check').textContent = '❌ At least 6 characters';
+                validationInfo.querySelector('.length-check').className = 'length-check text-danger';
+                validationInfo.querySelector('.number-check').textContent = '❌ At least 1 number';
+                validationInfo.querySelector('.number-check').className = 'number-check text-danger';
+                validationInfo.querySelector('.uppercase-check').textContent = '❌ At least 1 uppercase letter';
+                validationInfo.querySelector('.uppercase-check').className = 'uppercase-check text-danger';
+            }
         });
     }
     
@@ -717,63 +1289,159 @@ function setupEventListeners() {
             document.querySelector('#edit-member-form').removeAttribute('data-id');
         });
     }
+
+    // Emergency contact save button
+    const saveEmergencyBtn = document.querySelector('#save-emergency-btn');
+    if (saveEmergencyBtn) {
+        saveEmergencyBtn.addEventListener('click', handleEmergencyContactUpdate);
+    }
+    
+    // Weather search form
+    const weatherSearchForm = document.querySelector('#weather-search-form');
+    if (weatherSearchForm) {
+        weatherSearchForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const searchQuery = document.querySelector('#weather-search-input').value.trim();
+            if (searchQuery) {
+                searchWeatherLocation(searchQuery);
+            }
+        });
+    }
     
     // Load initial data
     loadEmergencyContacts();
     updateNotificationBadge();
 }
 
+
+// Add real-time password validation feedback
+function setupRealTimePasswordValidation() {
+    const passwordInput = document.getElementById('member-password');
+    if (!passwordInput) return;
+    
+    const validationInfo = document.createElement('div');
+    validationInfo.className = 'password-validation-info small mt-1';
+    validationInfo.innerHTML = `
+        <div class="length-check">❌ At least 6 characters</div>
+        <div class="number-check">❌ At least 1 number</div>
+        <div class="uppercase-check">❌ At least 1 uppercase letter</div>
+    `;
+    
+    passwordInput.parentNode.appendChild(validationInfo);
+    
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        
+        // Check length
+        const lengthValid = password.length >= 6;
+        validationInfo.querySelector('.length-check').textContent = 
+            `${lengthValid ? '✅' : '❌'} At least 6 characters`;
+        validationInfo.querySelector('.length-check').className = 
+            `length-check ${lengthValid ? 'text-success' : 'text-danger'}`;
+        
+        // Check number
+        const numberValid = /[0-9]/.test(password);
+        validationInfo.querySelector('.number-check').textContent = 
+            `${numberValid ? '✅' : '❌'} At least 1 number`;
+        validationInfo.querySelector('.number-check').className = 
+            `number-check ${numberValid ? 'text-success' : 'text-danger'}`;
+        
+        // Check uppercase
+        const uppercaseValid = /[A-Z]/.test(password);
+        validationInfo.querySelector('.uppercase-check').textContent = 
+            `${uppercaseValid ? '✅' : '❌'} At least 1 uppercase letter`;
+        validationInfo.querySelector('.uppercase-check').className = 
+            `uppercase-check ${uppercaseValid ? 'text-success' : 'text-danger'}`;
+            
+        // Update input styling using the proper validation function
+        const validation = validatePassword(password);
+        if (password) {
+            if (validation.isValid) {
+                showValidationFeedback(this, true);
+            } else {
+                const firstError = Object.values(validation.errors).find(error => error !== null);
+                showValidationFeedback(this, false, firstError);
+            }
+        } else {
+            // Clear validation if empty
+            this.classList.remove('is-invalid', 'is-valid');
+        }
+    });
+}
+
+// Call this in your setupEventListeners function
+setupRealTimePasswordValidation();
+
 // Save member handler with password validation
 function handleSaveMember() {
-    console.log("Handling save member...");
+    console.log("=== HANDLE SAVE MEMBER CALLED ===");
     
     const fullName = document.getElementById('member-name').value;
     const email = document.getElementById('member-email').value;
     const password = document.getElementById('member-password').value;
     const role = document.getElementById('member-role').value;
     
-    // Get selected access permissions
-    const accessElements = document.querySelectorAll('input[name="member-access"]:checked');
-    const access = Array.from(accessElements).map(el => el.value);
-    
-    console.log("Form values:", {fullName, email, role, access});
+    console.log("Form values:", {fullName, email, role, password: password ? "***" : "empty"});
     
     // Validate inputs
     let isValid = true;
     
+    // Reset validation states
+    document.getElementById('member-name').classList.remove('is-invalid');
+    document.getElementById('member-email').classList.remove('is-invalid');
+    document.getElementById('member-password').classList.remove('is-invalid');
+    document.getElementById('member-role').classList.remove('is-invalid');
+    
     if (!fullName) {
+        console.log("Validation failed: No full name");
         showToast('Error', 'Please enter a full name', 'error');
         document.getElementById('member-name').classList.add('is-invalid');
         isValid = false;
     }
     
     if (!email || !validateEmail(email)) {
+        console.log("Validation failed: Invalid email", email);
         showToast('Error', 'Please enter a valid email address', 'error');
         document.getElementById('member-email').classList.add('is-invalid');
         isValid = false;
     }
     
     if (!password) {
+        console.log("Validation failed: No password");
         showToast('Error', 'Please enter a password', 'error');
         document.getElementById('member-password').classList.add('is-invalid');
         isValid = false;
     } else {
         const passwordValidation = validatePassword(password);
-        if (!passwordValidation.isValid) {
-            const firstError = Object.values(passwordValidation.errors).find(error => error !== null);
-            showToast('Error', firstError, 'error');
+        console.log("Password validation result:", passwordValidation);
+        
+        // FIXED: Clear both classes first
+        document.getElementById('member-password').classList.remove('is-invalid', 'is-valid');
+        
+        if (passwordValidation.isValid === false) {
+            console.log("Validation failed: Password", passwordValidation.message);
+            showToast('Error', passwordValidation.message, 'error');
             document.getElementById('member-password').classList.add('is-invalid');
             isValid = false;
+        } else {
+            console.log("Password validation passed:", passwordValidation.message);
+            document.getElementById('member-password').classList.add('is-valid');
         }
     }
     
     if (!role) {
+        console.log("Validation failed: No role selected");
         showToast('Error', 'Please select a role', 'error');
         document.getElementById('member-role').classList.add('is-invalid');
         isValid = false;
     }
     
-    if (!isValid) return;
+    if (!isValid) {
+        console.log("Form validation failed, returning");
+        return;
+    }
+    
+    console.log("Form validation passed, proceeding to save");
     
     // Show loading state
     const saveMemberBtn = document.getElementById('save-member-btn');
@@ -781,27 +1449,29 @@ function handleSaveMember() {
     saveMemberBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
     saveMemberBtn.disabled = true;
     
+    // Get selected access permissions
+    const accessElements = document.querySelectorAll('input[name="member-access"]:checked');
+    const access = Array.from(accessElements).map(el => el.value);
+    console.log("Access permissions:", access);
+    
     // Prepare member data
     const memberData = {
         fullName: fullName,
         email: email,
-        password: password, // Include password for account creation
+        password: password,
         role: role,
         access: access,
         createdAt: firebase.database.ServerValue.TIMESTAMP,
         invitedBy: currentUser.uid
     };
     
-    // Add member to Firebase - This should call the enhanced version
+    console.log("Saving member data:", memberData);
+    
+    // Add member to Firebase
     addFamilyMember(memberData)
         .then(() => {
             console.log("Member added successfully");
-            // Check if notification was stored
-            setTimeout(() => {
-                checkNotifications();
-                updateNotificationBadge();
-            }, 1000);
-
+            
             // Success
             const modal = bootstrap.Modal.getInstance(document.getElementById('addMemberModal'));
             if (modal) {
@@ -809,24 +1479,15 @@ function handleSaveMember() {
             }
             
             // Reset form
-            const addMemberForm = document.getElementById('add-member-form');
-            if (addMemberForm) {
-                addMemberForm.reset();
-            }
-            
-            // Remove validation classes
-            document.getElementById('member-name').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('member-email').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('member-password').classList.remove('is-invalid', 'is-valid');
-            document.getElementById('member-role').classList.remove('is-invalid', 'is-valid');
+            document.getElementById('add-member-form').reset();
             
             showToast('Success', 'Family member added successfully', 'success');
         })
-            .catch(error => {
-                console.error("Add member error:", error);
-                showToast('Error', error.message, 'error');
-            })
-            .finally(() => {
+        .catch(error => {
+            console.error("Add member error:", error);
+            showToast('Error', error.message, 'error');
+        })
+        .finally(() => {
             // Restore button state
             saveMemberBtn.innerHTML = originalText;
             saveMemberBtn.disabled = false;
@@ -1287,18 +1948,6 @@ function showToast(title, message, type = 'info') {
     toast.addEventListener('hidden.bs.toast', () => {
         toast.remove();
     });
-}
-
-// Load emergency contacts
-function loadEmergencyContacts() {
-    database.ref('emergencyContacts/' + currentUser.uid).once('value')
-        .then((snapshot) => {
-            if (snapshot.exists()) {
-                const contacts = snapshot.val();
-                document.querySelector('#police-contact').value = contacts.police || '';
-                document.querySelector('#fire-contact').value = contacts.fire || '';
-            }
-        });
 }
 
 function loadNotifications() {

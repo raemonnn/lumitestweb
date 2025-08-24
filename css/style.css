@@ -902,24 +902,105 @@
     align-items: center;
 }
 
+/* Emergency Numbers Styling */
+.emergency-numbers {
+    display: grid;
+    gap: 1rem;
+}
+
+.emergency-number-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    padding-bottom: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.emergency-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.2rem;
+}
+
+.emergency-icon.police {
+    background: rgba(0, 123, 255, 0.2);
+    color: #007bff;
+}
+
+.emergency-icon.fire {
+    background: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+}
+
+.emergency-icon.ambulance {
+    background: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+}
+
+.emergency-info {
+    flex-grow: 1;
+}
+
+.emergency-type {
+    font-weight: 600;
+    color: var(--light);
+    margin-bottom: 0.2rem;
+}
+
+.emergency-number {
+    color: var(--gray);
+    font-size: 0.9rem;
+}
+
+/* Weather Search Styling */
+#weather-search-form {
+    max-width: 200px;
+}
+
+#weather-search-input {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+#weather-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* Weather Widget Styling */
 .weather-widget {
     display: flex;
     align-items: center;
+    gap: 1rem;
 }
 
 .weather-icon {
     font-size: 2rem;
-    margin-right: 15px;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
 }
 
 .weather-temp {
-    font-size: 1.8rem;
+    font-size: 1.5rem;
     font-weight: bold;
+    color: var(--light);
 }
 
 .weather-details {
-    font-size: 0.9rem;
     color: var(--gray);
+    font-size: 0.9rem;
 }
 
 .family-member {
@@ -1256,6 +1337,8 @@
     top: 50%;
     transform: translateY(-50%);
 }
+
+
 
 /* Notification badge animation */
 @keyframes pulse-notification {

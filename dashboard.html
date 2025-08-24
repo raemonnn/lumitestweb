@@ -22,7 +22,6 @@
                 <li><a href="#dashboard" class="active" data-bs-toggle="tab" data-bs-target="#dashboard"><i class="fas fa-home"></i> Dashboard</a></li>
                 <li><a href="#family-members" data-bs-toggle="tab" data-bs-target="#family-members"><i class="fas fa-users"></i> Family Members</a></li>
                 <li><a href="#customization" data-bs-toggle="tab" data-bs-target="#customization"><i class="fas fa-file-archive"></i> Customization</a></li>
-                <li><a href="#settings" data-bs-toggle="tab" data-bs-target="#settings"><i class="fas fa-cog"></i> Settings</a></li>
                 <li><a href="#emergency" data-bs-toggle="tab" data-bs-target="#emergency"><i class="fas fa-phone-alt"></i> Emergency</a></li>
                 <li><a href="#" id="logout-btn"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
             </ul>
@@ -50,18 +49,25 @@
                 <!-- Dashboard Tab -->
                 <div class="tab-pane fade show active" id="dashboard" role="tabpanel">
                     <h3 class="welcome-message mb-4"></h3>
-                    
                     <div class="row">
                         <div class="col-md-4">
                             <div class="dashboard-card">
-                                <div class="card-title">
+                                <div class="card-title d-flex justify-content-between align-items-center">
                                     <span>Weather</span>
+                                    <form id="weather-search-form" class="d-flex" style="max-width: 200px;">
+                                        <input type="text" id="weather-search-input" 
+                                            class="form-control form-control-sm me-2" 
+                                            placeholder="Search location...">
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                            <i class="fas fa-search"></i>
+                                        </button>
+                                    </form>
                                 </div>
                                 <div class="weather-widget">
-                                    <div class="weather-icon">☀️</div>
+                                    <div class="weather-icon">⛅</div>
                                     <div>
                                         <div class="weather-temp">--°C</div>
-                                        <div class="weather-details">Loading...</div>
+                                        <div class="weather-details">Loading weather...</div>
                                     </div>
                                 </div>
                             </div>
@@ -70,7 +76,7 @@
                             <div class="dashboard-card">
                                 <div class="card-title">
                                     <span>Date & Time</span>
-                                </div></br>
+                                </div>
                                 <div>
                                     <div class="current-date"></div>
                                     <div class="current-time"></div>
@@ -83,7 +89,7 @@
                                     <span>Quick Actions</span>
                                 </div>
                                 <div class="d-grid gap-2">
-                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal" >
+                                    <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addMemberModal">
                                         <i class="fas fa-user-plus me-2"></i>Add Family Member
                                     </button>
                                     <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#fileUploadModal">
@@ -93,20 +99,37 @@
                             </div>
                         </div>
                     </div>
-                    
-                    <div class="dashboard-card mt-4">
-                        <div class="card-title">
-                            <span>Family Members</span>
+
+                    <!-- Add this after the existing dashboard content -->
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <div class="dashboard-card">
+                                <div class="card-title">
+                                    <span>Family Members</span>
+                                </div>
+                                <div class="family-members">
+                                    <!-- Family members will be loaded here -->
+                                </div>
+                                <a href="#family-members" class="view-all-btn" data-bs-toggle="tab" data-bs-target="#family-members">
+                                    View All Members <i class="fas fa-arrow-right ms-2"></i>
+                                </a>
+                            </div>
                         </div>
-                        <div class="family-members">
-                            <!-- Family members will be loaded here -->
+                        <div class="col-md-6">
+                            <div class="dashboard-card">
+                                <div class="card-title">
+                                    <span>Emergency Numbers</span>
+                                </div>
+                                <div class="emergency-numbers">
+                                    <p class="text-muted">No emergency numbers added yet</p>
+                                </div>
+                                <a href="#emergency" class="view-all-btn" data-bs-toggle="tab" data-bs-target="#emergency">
+                                    Manage Emergency Contacts <i class="fas fa-arrow-right ms-2"></i>
+                                </a>
+                            </div>
                         </div>
-                        <a href="#family-members" class="view-all-btn" data-bs-toggle="tab" data-bs-target="#family-members">
-                            View All Members <i class="fas fa-arrow-right ms-2"></i>
-                        </a>
                     </div>
                 </div>
-                
                 <!-- Family Members Tab -->
                 <div class="tab-pane fade" id="family-members" role="tabpanel">
                     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -151,31 +174,9 @@
                     </div>
                 </div>
                 
-                <!-- Settings Tab -->
-                <div class="tab-pane fade" id="settings" role="tabpanel">
-                    <h3 class="mb-4">Account Settings</h3>
-                    
-                    <div class="dashboard-card">
-                        <form id="settings-form">
-                            <div class="form-group mb-3">
-                                <label for="settings-name" class="form-label">Full Name</label>
-                                <input type="text" class="form-control" id="settings-name" required>
-                            </div>
-                            <div class="form-group mb-3">
-                                <label for="settings-email" class="form-label">Email Address</label>
-                                <input type="email" class="form-control" id="settings-email" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Save Changes
-                            </button>
-                        </form>
-                    </div>
-                </div>
-                
-                <!-- Emergency Tab -->
+                <!-- Emergency Tab Content -->
                 <div class="tab-pane fade" id="emergency" role="tabpanel">
                     <h3 class="mb-4">Emergency Contacts</h3>
-                    
                     <div class="dashboard-card">
                         <form id="emergency-contacts-form">
                             <div class="form-group mb-3">
@@ -186,15 +187,16 @@
                                 <label for="fire-contact" class="form-label">Fire Department</label>
                                 <input type="text" class="form-control" id="fire-contact" placeholder="Enter fire department contact number">
                             </div>
-                            <button type="submit" class="btn btn-primary">
+                            <div class="form-group mb-3">
+                                <label for="ambulance-contact" class="form-label">Ambulance/Medical</label>
+                                <input type="text" class="form-control" id="ambulance-contact" placeholder="Enter ambulance/medical contact number">
+                            </div>
+                            <button type="button" class="btn btn-primary" id="save-emergency-btn">
                                 <i class="fas fa-save me-2"></i>Save Contacts
                             </button>
                         </form>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Add Member Modal -->
     <div class="modal fade" id="addMemberModal" tabindex="-1" aria-hidden="true">
@@ -209,17 +211,18 @@
                         <div class="form-group mb-3">
                             <label for="member-name" class="form-label">Full Name</label>
                             <input type="text" class="form-control" id="member-name" required>
+                            <div id="member-name-feedback" class="invalid-feedback"></div> <!-- Add this -->
                         </div>
                         <div class="form-group mb-3">
                             <label for="member-email" class="form-label">Email Address</label>
                             <input type="email" class="form-control" id="member-email" required>
-                        <div id="email-feedback" class="invalid-feedback"></div> <!-- Add this line -->
+                            <div id="member-email-feedback" class="invalid-feedback"></div> <!-- Add this -->
                         </div>
                         <div class="form-group mb-3">
                             <label for="member-password" class="form-label">Password</label>
                             <input type="password" class="form-control" id="member-password" required>
                             <div class="form-text">Must be at least 6 characters with 1 number and 1 uppercase letter</div>
-                            <div id="password-feedback" class="invalid-feedback"></div>
+                            <div id="member-password-feedback" class="invalid-feedback"></div> <!-- Add this -->
                         </div>
                         <div class="form-group mb-3">
                             <label for="member-role" class="form-label">Role</label>
@@ -236,6 +239,7 @@
                                 <option value="House Helper">House Helper</option>
                                 <option value="Guard">Guard</option>
                             </select>
+                            <div id="member-role-feedback" class="invalid-feedback"></div> <!-- Add this -->
                         </div>
                         <div class="form-group mb-3">
                             <label class="form-label">Access Permissions</label>

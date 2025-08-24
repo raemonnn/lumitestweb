@@ -210,7 +210,7 @@ function checkAuthState() {
                     'You have been signed out',
                     'info'
                 );
-                window.location.href = 'login.html';
+                window.location.href = 'index.html';
             }
         }
     });
