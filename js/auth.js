@@ -149,12 +149,12 @@ function handleSignup(e) {
         .then((userCredential) => {
             const user = userCredential.user;
             
-            // Save user data to database WITH ROLE FIELD
+            // Save user data to database WITH ROLE FIELD (even if null)
             return database.ref('users/' + user.uid).set({
                 fullName: fullName,
                 email: email,
-                role: 'head', // ← ADD THIS LINE
-                status: 'active', // ← ADD THIS LINE (optional but recommended)
+                role: 'head', // ← This must be included
+                status: 'active', // ← This must be included
                 createdAt: firebase.database.ServerValue.TIMESTAMP,
                 emailVerified: false
             })
@@ -182,12 +182,23 @@ function handleSignup(e) {
         })
         .catch((error) => {
             console.error("Signup error:", error);
-            showToast(
-                'Signup Failed', 
-                error.message,
-                'error',
-                6000
-            );
+            
+            // Check if it's a permission denied error
+            if (error.code === 'PERMISSION_DENIED') {
+                showToast(
+                    'Signup Failed', 
+                    'Database validation failed. Please contact support.',
+                    'error',
+                    6000
+                );
+            } else {
+                showToast(
+                    'Signup Failed', 
+                    error.message,
+                    'error',
+                    6000
+                );
+            }
         })
         .finally(() => {
             btn.disabled = false;
