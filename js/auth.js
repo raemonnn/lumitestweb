@@ -149,10 +149,12 @@ function handleSignup(e) {
         .then((userCredential) => {
             const user = userCredential.user;
             
-            // Save user data to database
+            // Save user data to database WITH ROLE FIELD
             return database.ref('users/' + user.uid).set({
                 fullName: fullName,
                 email: email,
+                role: 'head', // ← ADD THIS LINE
+                status: 'active', // ← ADD THIS LINE (optional but recommended)
                 createdAt: firebase.database.ServerValue.TIMESTAMP,
                 emailVerified: false
             })
