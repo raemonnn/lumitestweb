@@ -2305,7 +2305,7 @@ function setupNotificationSystem() {
     // Load notifications on startup
     loadNotifications();
     
-    // Listen for real-time notification updates - FIXED VERSION
+    // Listen for real-time notification updates
     database.ref('notifications/' + currentUser.uid).orderByChild('createdAt').on('value', (snapshot) => {
         updateNotificationBadge();
         if (document.getElementById('notificationsModal').classList.contains('show')) {
@@ -2313,31 +2313,41 @@ function setupNotificationSystem() {
         }
     });
     
-    // Add the real-time listener for new notifications
+    // Track the last notification timestamp to prevent showing old notifications
+    let lastNotificationTime = Date.now();
+    
+    // Add the real-time listener for NEW notifications only
     database.ref('notifications/' + currentUser.uid)
         .orderByChild('createdAt')
+        .startAt(lastNotificationTime + 1) // Only get notifications newer than current time
         .on('child_added', (snapshot) => {
             console.log("New notification received!");
             const notification = snapshot.val();
             notification.id = snapshot.key;
             
-            // Update badge count
-            updateNotificationBadge();
+            // Update the last notification time
+            lastNotificationTime = Math.max(lastNotificationTime, notification.createdAt || Date.now());
             
-            // Show browser notification if not in focus
-            if (document.hidden && Notification.permission === 'granted') {
-                new Notification(notification.title, {
-                    body: notification.message,
-                    icon: '/favicon.ico'
-                });
-            }
-            
-            // Show toast notification
-            showToast(notification.title, notification.message, 'info');
-            
-            // If notifications modal is open, refresh it
-            if (document.getElementById('notificationsModal').classList.contains('show')) {
-                loadNotificationsModal();
+            // Only show toast for unread notifications that are actually new
+            if (!notification.read) {
+                // Update badge count
+                updateNotificationBadge();
+                
+                // Show browser notification if not in focus
+                if (document.hidden && Notification.permission === 'granted') {
+                    new Notification(notification.title, {
+                        body: notification.message,
+                        icon: '/favicon.ico'
+                    });
+                }
+                
+                // Show toast notification only for truly new notifications
+                showToast(notification.title, notification.message, 'info');
+                
+                // If notifications modal is open, refresh it
+                if (document.getElementById('notificationsModal').classList.contains('show')) {
+                    loadNotificationsModal();
+                }
             }
         });
 }
@@ -2408,12 +2418,22 @@ function setupRequestStatusListener() {
     
     console.log("Setting up request status listener for user:", currentUser.uid);
     
+    // Track processed requests to prevent duplicate notifications
+    const processedRequests = new Set();
+    
     // Listen for changes to user's customization requests
     database.ref('customizationRequests/' + currentUser.uid).on('child_changed', (snapshot) => {
         const request = snapshot.val();
         request.id = snapshot.key;
         
         console.log("Request status changed:", request.status);
+        
+        // Check if we've already processed this request change to prevent duplicates
+        if (processedRequests.has(request.id)) {
+            return;
+        }
+        
+        processedRequests.add(request.id);
         
         // Only show notifications for status changes to approved/declined
         if (request.status === 'approved') {
@@ -2434,12 +2454,11 @@ function setupRequestStatusListener() {
             // Update the UI immediately
             loadUploadedFiles();
         }
-    });
-    
-    // Also listen for new requests (though this shouldn't happen from developer side)
-activeListeners.requests = database.ref('customizationRequests/' + currentUser.uid)
-        .on('child_changed', (snapshot) => {
-        console.log("New request added (shouldn't happen from developer)");
+        
+        // Clean up processed requests after some time to prevent memory leaks
+        setTimeout(() => {
+            processedRequests.delete(request.id);
+        }, 60000); // Remove after 1 minute
     });
 }
 
