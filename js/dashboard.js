@@ -5,6 +5,12 @@ const EMAILJS_TEMPLATE_ID = 'template_db0luo8';
 
 const EMAILJS_TEMPLATE_EMAIL_CHANGE_ID = 'template_h3l9zgq';
 
+// Add this to track your listeners
+const activeListeners = {
+    notifications: null,
+    requests: null
+};
+
 // Add your AccuWeather API key here
 const ACCUWEATHER_API_KEY = 'CF1pRBTbcQz9liDORwAW694Xlk38Z9PK';
 
@@ -2288,8 +2294,7 @@ function setupNotificationSystem() {
     // Load initial notifications
     loadNotifications();
     
-    // Listen for real-time notification additions
-    database.ref('notifications/' + currentUser.uid)
+         activeListeners.notifications = database.ref('notifications/' + currentUser.uid)
         .orderByChild('createdAt')
         .on('child_added', (snapshot) => {
             console.log("New notification received!");
@@ -2424,11 +2429,39 @@ function setupRequestStatusListener() {
     });
     
     // Also listen for new requests (though this shouldn't happen from developer side)
-    database.ref('customizationRequests/' + currentUser.uid).on('child_added', (snapshot) => {
+activeListeners.requests = database.ref('customizationRequests/' + currentUser.uid)
+        .on('child_changed', (snapshot) => {
         console.log("New request added (shouldn't happen from developer)");
     });
 }
 
+// Add cleanup function
+function cleanupFirebaseListeners() {
+    if (activeListeners.notifications) {
+        database.ref('notifications/' + currentUser.uid)
+            .orderByChild('createdAt')
+            .off('child_added', activeListeners.notifications);
+    }
+    
+    if (activeListeners.requests) {
+        database.ref('customizationRequests/' + currentUser.uid)
+            .off('child_changed', activeListeners.requests);
+    }
+    
+    // Also remove any other listeners you might have
+    database.ref('familyMembers/' + currentUser.uid).off();
+}
+
+// Call cleanup on page unload or logout
+window.addEventListener('beforeunload', cleanupFirebaseListeners);
+
+// Also call cleanup when user logs out
+function logout() {
+    cleanupFirebaseListeners();
+    auth.signOut().then(() => {
+        window.location.href = 'login.html';
+    });
+}
 
 // Get appropriate icon for notification type
 function getNotificationIcon(type) {
