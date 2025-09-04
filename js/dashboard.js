@@ -2266,25 +2266,31 @@ const NOTIFICATION_TYPES = {
 };
 
 // Add this function to create notifications
-function createNotification(title, message, data = {}) {
-    const notification = {
-        title: title,
-        message: message,
-        read: false,
-        createdAt: firebase.database.ServerValue.TIMESTAMP
-        // REMOVE the 'data' field since it's not allowed by your rules
-    };
-
-    return database.ref('notifications/' + currentUser.uid).push(notification)
-        .then(() => {
-            updateNotificationBadge(); // Update the badge
-            return true;
-        })
-        .catch((error) => {
-            console.error("Error creating notification:", error);
-            // Don't show error to user, just log it
-            return false;
-        });
+// RENAME THIS FUNCTION from createNotification to createNotificationElement
+function createNotificationElement(notification) {
+    const element = document.createElement('div');
+    element.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
+    element.dataset.id = notification.id;
+    
+    // Use a default icon since we don't have type in your structure
+    const icon = '🔔'; // Default bell icon
+    
+    const timeAgo = formatTimeAgo(notification.createdAt);
+    
+    element.innerHTML = `
+        <div class="d-flex align-items-start">
+            <div class="notification-icon me-3">${icon}</div>
+            <div class="flex-grow-1">
+                <h6 class="mb-1">${notification.title}</h6>
+                <p class="mb-1 small">${notification.message}</p>
+                <small class="text-muted">${timeAgo}</small>
+            </div>
+            ${!notification.read ? '<span class="badge bg-primary ms-2">New</span>' : ''}
+        </div>
+    `;
+    
+    element.addEventListener('click', () => markNotificationAsRead(notification.id));
+    return element;
 }
 
 // Enhanced notification system
@@ -2357,7 +2363,7 @@ function loadNotificationsModal() {
             });
             
             notifications.forEach(notification => {
-                const notificationElement = createNotificationElement(notification);
+                const notificationElement = createNotificationElement(notification); // Use renamed function
                 notificationsList.appendChild(notificationElement);
             });
         });
