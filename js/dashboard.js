@@ -43,6 +43,7 @@ function initDashboard() {
             debugTour();
             debugNotifications();
             resetTourForNewUser();
+            setupRequestStatusListener();
             
             // Setup event listeners
             setupEventListeners();
@@ -2000,10 +2001,20 @@ function loadUploadedFiles() {
             
             console.log('Found', snapshot.numChildren(), 'files');
             
+            // Create array to sort by date
+            const requests = [];
+            
             snapshot.forEach((childSnapshot) => {
                 const fileData = childSnapshot.val();
                 fileData.id = childSnapshot.key;
-                
+                requests.push(fileData);
+            });
+            
+            // Sort by date (newest first)
+            requests.sort((a, b) => b.uploadedAt - a.uploadedAt);
+            
+            // Create elements for each request
+            requests.forEach(fileData => {
                 const fileElement = createFileElement(fileData);
                 filesContainer.appendChild(fileElement);
             });
@@ -2029,17 +2040,34 @@ function createFileElement(fileData) {
     const formattedSize = formatFileSize(fileData.fileSize);
     const statusClass = getStatusBadgeClass(fileData.status);
     
+    // Add additional info for approved/declined requests
+    let statusInfo = '';
+    if (fileData.status === 'approved' && fileData.approvedBy) {
+        statusInfo = `<small class="d-block mt-1">Approved by: ${fileData.approvedBy}</small>`;
+        if (fileData.approvedAt) {
+            statusInfo += `<small class="d-block">On: ${new Date(fileData.approvedAt).toLocaleDateString()}</small>`;
+        }
+    } else if (fileData.status === 'declined' && fileData.declinedBy) {
+        statusInfo = `<small class="d-block mt-1">Declined by: ${fileData.declinedBy}</small>`;
+        if (fileData.declinedAt) {
+            statusInfo += `<small class="d-block">On: ${new Date(fileData.declinedAt).toLocaleDateString()}</small>`;
+        }
+        if (fileData.declineReason) {
+            statusInfo += `<small class="d-block">Reason: ${fileData.declineReason}</small>`;
+        }
+    }
+    
     fileElement.innerHTML = `
         <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex justify-content-between align-items-start">
                 <div class="flex-grow-1">
                     <h6 class="card-title mb-1">${fileData.fileName}</h6>
                     <p class="card-text small mb-1">
                         ${formattedSize} • ${formattedDate}
                     </p>
                     <p class="card-text small">${fileData.message || 'No message'}</p>
-                    <p class="card-text small">Expires: ${fileData.expires || '14 days'}</p>
                     <span class="badge ${statusClass}">${fileData.status}</span>
+                    ${statusInfo}
                 </div>
                 <div class="btn-group ms-3">
                     <a href="${fileData.downloadUrl || fileData.fileUrl}" target="_blank" class="btn btn-sm btn-outline-primary">
@@ -2077,7 +2105,9 @@ function formatFileSize(bytes) {
 // Get status badge class
 function getStatusBadgeClass(status) {
     switch (status) {
-        case 'pending': return 'bg-warning';
+        case 'pending': return 'bg-warning text-dark';
+        case 'approved': return 'bg-success';
+        case 'declined': return 'bg-danger';
         case 'processing': return 'bg-info';
         case 'completed': return 'bg-success';
         case 'failed': return 'bg-danger';
@@ -2253,19 +2283,41 @@ function createNotification(title, message, data = {}) {
 
 // Enhanced notification system
 function setupNotificationSystem() {
-    console.log("Setting up notification system...");
+    console.log("Setting up enhanced notification system...");
     
-    // Listen for notification clicks
-    const notificationBell = document.querySelector('.notification-bell');
-    if (notificationBell) {
-        notificationBell.addEventListener('click', showNotificationsModal);
-    }
-    
-    // Load notifications on startup
+    // Load initial notifications
     loadNotifications();
     
-    // Listen for real-time notification updates
-    database.ref('notifications/' + currentUser.uid).orderByChild('createdAt').on('value', (snapshot) => {
+    // Listen for real-time notification additions
+    database.ref('notifications/' + currentUser.uid)
+        .orderByChild('createdAt')
+        .on('child_added', (snapshot) => {
+            console.log("New notification received!");
+            const notification = snapshot.val();
+            notification.id = snapshot.key;
+            
+            // Update badge count
+            updateNotificationBadge();
+            
+            // Show browser notification if not in focus
+            if (document.hidden && Notification.permission === 'granted') {
+                new Notification(notification.title, {
+                    body: notification.message,
+                    icon: '/favicon.ico'
+                });
+            }
+            
+            // Show toast notification
+            showToast(notification.title, notification.message, 'info');
+            
+            // If notifications modal is open, refresh it
+            if (document.getElementById('notificationsModal').classList.contains('show')) {
+                loadNotificationsModal();
+            }
+        });
+    
+    // Also listen for changes to existing notifications
+    database.ref('notifications/' + currentUser.uid).on('child_changed', (snapshot) => {
         updateNotificationBadge();
         if (document.getElementById('notificationsModal').classList.contains('show')) {
             loadNotificationsModal();
@@ -2308,30 +2360,73 @@ function loadNotificationsModal() {
 
 
 // Create notification element
-function createNotificationElement(notification) {
-    const element = document.createElement('div');
-    element.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
-    element.dataset.id = notification.id;
+function createNotification(title, message) {
+    // Check if user is authenticated
+    if (!currentUser) {
+        console.error("Cannot create notification: No authenticated user");
+        return Promise.resolve(false);
+    }
     
-    // Use a default icon since we don't have type in your structure
-    const icon = '🔔'; // Default bell icon
+    const notification = {
+        title: title,
+        message: message,
+        read: false,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        // REMOVE any 'data' field as it violates your database rules
+    };
+
+    console.log("Creating notification:", notification);
     
-    const timeAgo = formatTimeAgo(notification.createdAt);
+    return database.ref('notifications/' + currentUser.uid).push(notification)
+        .then(() => {
+            console.log("Notification created successfully");
+            updateNotificationBadge();
+            return true;
+        })
+        .catch((error) => {
+            console.error("Error creating notification:", error);
+            // Don't show error to user for notifications
+            return false;
+        });
+}
+
+function setupRequestStatusListener() {
+    if (!currentUser) return;
     
-    element.innerHTML = `
-        <div class="d-flex align-items-start">
-            <div class="notification-icon me-3">${icon}</div>
-            <div class="flex-grow-1">
-                <h6 class="mb-1">${notification.title}</h6>
-                <p class="mb-1 small">${notification.message}</p>
-                <small class="text-muted">${timeAgo}</small>
-            </div>
-            ${!notification.read ? '<span class="badge bg-primary ms-2">New</span>' : ''}
-        </div>
-    `;
+    console.log("Setting up request status listener for user:", currentUser.uid);
     
-    element.addEventListener('click', () => markNotificationAsRead(notification.id));
-    return element;
+    // Listen for changes to user's customization requests
+    database.ref('customizationRequests/' + currentUser.uid).on('child_changed', (snapshot) => {
+        const request = snapshot.val();
+        request.id = snapshot.key;
+        
+        console.log("Request status changed:", request.status);
+        
+        // Only show notifications for status changes to approved/declined
+        if (request.status === 'approved') {
+            createNotification(
+                'Request Approved!', 
+                `Your customization request "${request.fileName}" has been approved by ${request.approvedBy || 'the developer'}.`
+            );
+            
+            // Also update the UI immediately
+            loadUploadedFiles();
+        } 
+        else if (request.status === 'declined') {
+            createNotification(
+                'Request Declined', 
+                `Your customization request "${request.fileName}" was declined. Reason: ${request.declineReason || 'No reason provided'}.`
+            );
+            
+            // Update the UI immediately
+            loadUploadedFiles();
+        }
+    });
+    
+    // Also listen for new requests (though this shouldn't happen from developer side)
+    database.ref('customizationRequests/' + currentUser.uid).on('child_added', (snapshot) => {
+        console.log("New request added (shouldn't happen from developer)");
+    });
 }
 
 
