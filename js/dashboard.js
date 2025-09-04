@@ -2266,7 +2266,6 @@ const NOTIFICATION_TYPES = {
 };
 
 // Add this function to create notifications
-// RENAME THIS FUNCTION from createNotification to createNotificationElement
 function createNotificationElement(notification) {
     const element = document.createElement('div');
     element.className = `notification-item ${notification.read ? 'read' : 'unread'}`;
@@ -2295,12 +2294,27 @@ function createNotificationElement(notification) {
 
 // Enhanced notification system
 function setupNotificationSystem() {
-    console.log("Setting up enhanced notification system...");
+    console.log("Setting up notification system...");
     
-    // Load initial notifications
+    // Listen for notification clicks
+    const notificationBell = document.querySelector('.notification-bell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', showNotificationsModal);
+    }
+    
+    // Load notifications on startup
     loadNotifications();
     
-         activeListeners.notifications = database.ref('notifications/' + currentUser.uid)
+    // Listen for real-time notification updates - FIXED VERSION
+    database.ref('notifications/' + currentUser.uid).orderByChild('createdAt').on('value', (snapshot) => {
+        updateNotificationBadge();
+        if (document.getElementById('notificationsModal').classList.contains('show')) {
+            loadNotificationsModal();
+        }
+    });
+    
+    // Add the real-time listener for new notifications
+    database.ref('notifications/' + currentUser.uid)
         .orderByChild('createdAt')
         .on('child_added', (snapshot) => {
             console.log("New notification received!");
@@ -2326,14 +2340,6 @@ function setupNotificationSystem() {
                 loadNotificationsModal();
             }
         });
-    
-    // Also listen for changes to existing notifications
-    database.ref('notifications/' + currentUser.uid).on('child_changed', (snapshot) => {
-        updateNotificationBadge();
-        if (document.getElementById('notificationsModal').classList.contains('show')) {
-            loadNotificationsModal();
-        }
-    });
 }
 
 // Load notifications for modal
@@ -2371,8 +2377,7 @@ function loadNotificationsModal() {
 
 
 // Create notification element
-function createNotification(title, message) {
-    // Check if user is authenticated
+function createNotification(title, message, data = {}) {
     if (!currentUser) {
         console.error("Cannot create notification: No authenticated user");
         return Promise.resolve(false);
@@ -2382,21 +2387,18 @@ function createNotification(title, message) {
         title: title,
         message: message,
         read: false,
-        createdAt: firebase.database.ServerValue.TIMESTAMP,
-        // REMOVE any 'data' field as it violates your database rules
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+        // REMOVE the 'data' field since it's not allowed by your rules
     };
 
-    console.log("Creating notification:", notification);
-    
     return database.ref('notifications/' + currentUser.uid).push(notification)
         .then(() => {
-            console.log("Notification created successfully");
-            updateNotificationBadge();
+            updateNotificationBadge(); // Update the badge
             return true;
         })
         .catch((error) => {
             console.error("Error creating notification:", error);
-            // Don't show error to user for notifications
+            // Don't show error to user, just log it
             return false;
         });
 }
